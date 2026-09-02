@@ -62,6 +62,8 @@ export const Home = () => {
       return;
     }
 
+    // Reset previous preview state and start searching
+    setVideo(null);
     setLoading(true);
 
     try {
