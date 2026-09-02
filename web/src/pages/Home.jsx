@@ -250,11 +250,11 @@ export const Home = () => {
           />
         )}
 
-        {/* Security & Ownership Guidelines Footer Note */}
+        {/* Fast & Easy Downloads Footer Note */}
         <div className="mt-10 text-center max-w-lg mx-auto leading-relaxed">
           <div className="glass-panel px-5 py-3.5 rounded-2xl border shadow-sm text-xs theme-text-primary font-medium inline-block">
             <p>
-              🔒 <strong>Ownership & Compliance Notice</strong>: This platform strictly processes user-owned media or open public video URLs. Scraping private feeds or removing copyrighted watermarks is not supported.
+              ⚡ <strong>Fast & Easy Downloads</strong>: Paste an Instagram video URL above and download your video in seconds.
             </p>
           </div>
         </div>
