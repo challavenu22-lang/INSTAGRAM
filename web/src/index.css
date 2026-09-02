@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default / Dark Theme Tokens (primary dark reference design) */
+  --bg-main: transparent;
+  --bg-image: url('/assets/bg-dark.png');
+  --bg-overlay: rgba(2, 6, 23, 0.72);
+  --bg-card: rgba(15, 23, 42, 0.82);
+  --bg-card-border: rgba(255, 255, 255, 0.1);
+  --bg-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  --bg-input: rgba(15, 23, 42, 0.88);
+  --border-input: rgba(51, 65, 85, 0.85);
+  
+  --text-heading: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --placeholder: #64748b;
+  
+  --btn-secondary-bg: rgba(30, 41, 59, 0.85);
+  --btn-secondary-text: #f1f5f9;
+  --btn-secondary-border: rgba(51, 65, 85, 0.9);
+  --btn-secondary-hover: rgba(51, 65, 85, 0.9);
+
+  --nav-bg: rgba(15, 23, 42, 0.82);
+  --nav-border: rgba(255, 255, 255, 0.1);
+  --dropdown-bg: #0f172a;
+  --dropdown-border: #334155;
+  --modal-bg: rgba(15, 23, 42, 0.95);
+  --modal-border: rgba(255, 255, 255, 0.12);
+}
+
+html.light-theme {
+  /* Bright / Light Theme Tokens - Single Dark Bokeh Background Picture (/assets/bg-dark.png) with ALL BLACK TEXT */
+  --bg-main: transparent;
+  --bg-image: url('/assets/bg-dark.png');
+  --bg-overlay: rgba(255, 255, 255, 0.75);
+  --bg-card: rgba(255, 255, 255, 0.94);
+  --bg-card-border: rgba(219, 234, 254, 0.9);
+  --bg-card-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.18), 0 10px 20px -5px rgba(148, 163, 184, 0.12);
+  --bg-input: #ffffff;
+  --border-input: #cbd5e1;
+  
+  --text-heading: #000000;   /* Black (#000000) for all headings */
+  --text-primary: #000000;   /* Black (#000000) for all main text */
+  --text-secondary: #172033; /* Dark Navy/Black (#172033) for subtitles */
+  --text-muted: #334155;     /* Dark Slate/Black (#334155) for secondary text */
+  --placeholder: #64748b;
+  
+  --btn-secondary-bg: rgba(255, 255, 255, 0.92);
+  --btn-secondary-text: #000000;
+  --btn-secondary-border: #cbd5e1;
+  --btn-secondary-hover: #f1f5f9;
+
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --nav-border: rgba(226, 232, 240, 0.85);
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #cbd5e1;
+  --modal-bg: rgba(255, 255, 255, 0.96);
+  --modal-border: #cbd5e1;
+}
+
+body {
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: background-image 0.4s ease-in-out;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-color: var(--bg-overlay);
+  transition: background-color 0.4s ease-in-out;
+  pointer-events: none;
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.22) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+.dark-theme .bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1.2px, transparent 1.2px);
+}
+
+.theme-bg-main {
+  background-color: var(--bg-main);
+}
+
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-muted {
+  color: var(--text-muted);
+}
+
+.glass-panel {
+  background-color: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--bg-card-border);
+  box-shadow: var(--bg-card-shadow);
+  color: var(--text-primary);
+}
+
+.input-field {
+  background-color: var(--bg-input);
+  border: 2px solid #10b981;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  @apply focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/25 focus:outline-none rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 outline-none transition-all duration-200 w-full;
+}
+
+.input-field::placeholder {
+  color: var(--placeholder);
+}
+
+.btn-primary {
+  @apply bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-brand-600/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
+  @apply font-medium px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover);
+}
+
+.btn-paste {
+  background-color: #fef3c7;
+  color: #78350f;
+  border: 1px solid #fde68a;
+  @apply font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-amber-200 active:bg-amber-300 shadow-md;
+}
+
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@media (max-width: 600px) {
+  .home-heading {
+    white-space: nowrap !important;
+    font-size: clamp(18px, 5.4vw, 32px) !important;
+  }
+  .action-buttons {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .action-buttons button {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+}
