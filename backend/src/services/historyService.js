@@ -76,5 +76,20 @@ export const historyService = {
       message: 'All download history records cleared successfully.',
       count: result.count 
     };
+  },
+
+  createHistoryItem: async (userId, data) => {
+    const item = await prisma.downloadHistory.create({
+      data: {
+        userId,
+        sourceUrl: data.sourceUrl || data.url || '',
+        sourceDomain: data.sourceDomain || 'instagram.com',
+        title: data.title || 'Instagram Video',
+        thumbnailUrl: data.thumbnailUrl || '',
+        status: data.status || 'COMPLETED',
+        fileSize: data.fileSize ? parseInt(data.fileSize, 10) : null
+      }
+    });
+    return item;
   }
 };

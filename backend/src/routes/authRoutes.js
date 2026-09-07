@@ -8,7 +8,7 @@ import {
   logoutAll, 
   forgotPassword, 
   resetPassword, 
-  me 
+  me
 } from '../controllers/authController.js';
 import { authenticateUser } from '../middleware/auth.js';
 import { validateBody } from '../middleware/requestValidation.js';
@@ -16,13 +16,28 @@ import { authRateLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
+const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#^~=+\\[\]{}()|;:,.<>/])[A-Za-z\d@$!%*?&_\-#^~=+\\[\]{}()|;:,.<>/]+$/;
+
 const registerSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters long')
+  fullName: z.string().optional(),
+  name: z.string().optional(),
+  userName: z.string().optional(),
+  username: z.string().optional(),
+  email: z.string().email('Please enter a valid email address').toLowerCase().trim(),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .refine((val) => /[A-Z]/.test(val), 'Password must contain at least one uppercase letter')
+    .refine((val) => /[a-z]/.test(val), 'Password must contain at least one lowercase letter')
+    .refine((val) => /\d/.test(val), 'Password must contain at least one number')
+    .refine((val) => /[^A-Za-z0-9]/.test(val), 'Password must contain at least one special character')
+}).refine((data) => Boolean((data.userName && data.userName.trim()) || (data.username && data.username.trim())), {
+  message: 'User Name is required',
+  path: ['userName']
 });
 
+
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  identifier: z.string().min(1, 'User Name or Email is required'),
   password: z.string().min(1, 'Password is required')
 });
 

@@ -22,6 +22,25 @@ export const updateSettings = async (req, res, next) => {
   }
 };
 
+export const updateProfile = async (req, res, next) => {
+  try {
+    const result = await settingsService.updateProfile(req.user.id, req.body);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyPassword = async (req, res, next) => {
+  try {
+    const { currentPassword } = req.body;
+    const result = await settingsService.verifyPassword(req.user.id, currentPassword);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updatePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;

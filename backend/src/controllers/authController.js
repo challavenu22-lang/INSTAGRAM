@@ -2,8 +2,10 @@ import { authService } from '../services/authService.js';
 
 export const register = async (req, res, next) => {
   try {
+    const fullName = req.body.fullName || req.body.name || '';
+    const userName = req.body.userName || req.body.username || '';
     const { email, password } = req.body;
-    const result = await authService.register(email, password);
+    const result = await authService.register(fullName, userName, email, password);
     res.status(201).json({ success: true, ...result });
   } catch (error) {
     next(error);
@@ -22,8 +24,8 @@ export const verifyEmail = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const result = await authService.login(email, password);
+    const { identifier, password } = req.body;
+    const result = await authService.login(identifier, password);
     res.json({ success: true, ...result });
   } catch (error) {
     next(error);
@@ -70,9 +72,22 @@ export const resetPassword = async (req, res, next) => {
 
 export const me = async (req, res, next) => {
   try {
+    const user = req.user;
+    const displayName = user.name || user.fullName || user.username || '';
+    const displayUsername = user.username || '';
     res.json({
       success: true,
-      user: req.user
+      user: {
+        id: user.id,
+        name: displayName,
+        fullName: displayName,
+        userName: displayName,
+        username: displayUsername,
+        email: user.email,
+        picture: user.picture,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt
+      }
     });
   } catch (error) {
     next(error);

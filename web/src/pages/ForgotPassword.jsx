@@ -64,7 +64,7 @@ export const ForgotPassword = () => {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
                   placeholder="user@example.com"
                   className="input-field pl-11"
                 />

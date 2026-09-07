@@ -1,5 +1,47 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { storageService } from '../services/storageService';
+
+const playChimeSound = async () => {
+  let played = false;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.35);
+      played = true;
+    }
+  } catch (e) {
+    // Ignore AudioContext errors
+  }
+
+  if (!played) {
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRl9vAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVtvAACBhYqFb3WFiYp/h4mKi4yMjY6PkJGRk5WWlpeYmJmampucnJ2en5+goKGlpqioqamrrK2ur7CxsrK0tba3uLm6u7y9vr/AwcLExca/wMHCxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq7O3u7/Dx8vP09fb3+Pn6+/z9/v4=');
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }
+};
 
 const ToastContext = createContext(null);
 
@@ -11,10 +53,18 @@ export const ToastProvider = ({ children }) => {
   }, []);
 
   const showToast = useCallback(({ type = 'success', title, message }) => {
+    const settings = storageService.getSettings();
+    if (settings.notifySound !== false) {
+      playChimeSound();
+    }
+
     const id = Date.now().toString() + Math.random().toString().slice(2, 6);
     const newToast = { id, type, title, message };
-    
-    setToasts((prev) => [...prev, newToast]);
+
+    setToasts((prev) => [
+      ...prev.filter((t) => !(t.title === title && t.message === message)),
+      newToast
+    ]);
 
     setTimeout(() => {
       removeToast(id);

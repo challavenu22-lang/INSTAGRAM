@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Download, User, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, User, Lock, Eye, EyeOff, AlertCircle, Loader2, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
-export const Login = () => {
+export const LoginModal = ({ isOpen, onClose }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +15,8 @@ export const Login = () => {
   });
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  if (!isOpen) return null;
 
   const handleIdentifierChange = (e) => {
     setIdentifier(e.target.value.toLowerCase());
@@ -32,7 +34,7 @@ export const Login = () => {
     let hasError = false;
 
     if (!identifier.trim()) {
-      newErrors.identifier = 'Please enter your User ID or Email.';
+      newErrors.identifier = 'Please enter your username or email.';
       hasError = true;
     }
 
@@ -51,6 +53,7 @@ export const Login = () => {
 
     try {
       await login(identifier.trim(), password);
+      onClose();
       navigate('/home');
     } catch (err) {
       setFieldErrors({ identifier: '', password: '', general: err.message || 'Invalid credentials.' });
@@ -60,9 +63,20 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4.5rem)] flex items-center justify-center py-6 px-4">
-      <div className="auth-card w-full max-w-md space-y-4 rounded-2xl glass-panel p-6 sm:p-8 shadow-2xl border border-slate-800">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
+      <div 
+        className="auth-card w-full max-w-md space-y-4 rounded-2xl glass-panel p-6 sm:p-8 shadow-2xl border border-slate-800 relative animate-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 p-1.5 rounded-xl theme-text-muted hover:text-white hover:bg-slate-800/60 transition-all cursor-pointer z-10"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         <div className="text-center">
           <div className="w-12 h-12 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center text-brand-500 mx-auto mb-3">
             <Download className="w-6 h-6" />
@@ -81,7 +95,7 @@ export const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="form-group">
             <label className="auth-label">
-              USER ID OR EMAIL
+              USER NAME OR EMAIL
             </label>
             <div className="relative">
               <User className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
@@ -89,7 +103,7 @@ export const Login = () => {
                 type="text"
                 value={identifier}
                 onChange={handleIdentifierChange}
-                placeholder="Enter your User ID or Email"
+                placeholder="Enter username or email"
                 className={`auth-input !pl-[44px] !pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
             </div>
@@ -111,11 +125,10 @@ export const Login = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={handlePasswordChange}
-                placeholder="Enter your password"
+                placeholder="Enter password"
                 autoComplete="current-password"
                 className={`auth-input !pl-[44px] !pr-[44px] select-text ${fieldErrors.password ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
-
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -146,12 +159,12 @@ export const Login = () => {
           Don't have an account?{' '}
           <Link
             to="/register"
+            onClick={onClose}
             className="text-blue-400 font-bold hover:text-blue-300 underline underline-offset-4 decoration-2 decoration-blue-400 transition-colors"
           >
             Create an account
           </Link>
         </div>
-
       </div>
     </div>
   );

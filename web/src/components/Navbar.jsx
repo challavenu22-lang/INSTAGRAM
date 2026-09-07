@@ -5,7 +5,10 @@ import {
   Settings, 
   History, 
   LogOut, 
-  MoreVertical 
+  MoreVertical,
+  User,
+  UserRound,
+  LogIn
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -46,15 +49,20 @@ export const Navbar = () => {
   const isSettingsActive = location.pathname === '/settings';
   const isHistoryActive = location.pathname === '/history';
 
+  const isLoginPage = location.pathname === '/login';
+
+  const displayedUserName = user?.name || user?.fullName || user?.userName || user?.username || user?.email?.split('@')[0] || 'User';
+  const firstLetter = displayedUserName.charAt(0).toUpperCase();
+
   return (
     <header className="sticky top-0 z-40 w-full glass-panel">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
         
         {/* Top-Left: Home Navigation Link (Theme-Aware Solid Icon + Text) */}
         <Link 
           to="/home" 
           aria-label="Home"
-          className="flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
+          className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
           <svg 
             className="w-6 h-6 sm:w-7 sm:h-7 fill-current shrink-0" 
@@ -67,12 +75,51 @@ export const Navbar = () => {
         </Link>
 
         {/* Top Right Header Actions */}
-        <div className="flex items-center gap-3">
-          {!user && (
-            <Link to="/login" className="btn-secondary text-sm px-4 py-2">
-              Sign In
-            </Link>
-          )}
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <div 
+            className={`transition-all duration-200 ${isOpen ? 'blur-[5px] opacity-75 pointer-events-none select-none' : 'blur-none opacity-100 pointer-events-auto'}`}
+            aria-hidden={isOpen}
+          >
+            {user ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 theme-text-primary text-xs font-semibold shadow-sm">
+                {user?.picture ? (
+                  <img 
+                    src={user.picture} 
+                    alt={displayedUserName} 
+                    className="w-6 h-6 rounded-full object-cover border border-brand-500/40 shrink-0 select-none" 
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-brand-600/30 border border-brand-500/40 text-brand-400 flex items-center justify-center text-xs font-bold shrink-0 uppercase select-none">
+                    {firstLetter}
+                  </div>
+                )}
+                <span className="truncate max-w-[120px] sm:max-w-[160px] text-xs font-semibold theme-text-primary">
+                  {displayedUserName}
+                </span>
+              </div>
+            ) : (
+              <div className="relative z-50">
+                {isLoginPage ? (
+                  <button
+                    type="button"
+                    disabled
+                    onClick={(e) => e.preventDefault()}
+                    className="bg-blue-900 border border-blue-700/60 text-white font-medium rounded-xl transition-all duration-200 shadow-md shadow-blue-950/40 text-sm px-4 py-2 opacity-50 cursor-not-allowed pointer-events-auto select-none flex items-center gap-2"
+                    style={{ cursor: 'not-allowed' }}
+                    aria-disabled="true"
+                  >
+                    <UserRound size={20} strokeWidth={2} className="shrink-0 text-white" />
+                    <span>Sign In</span>
+                  </button>
+                ) : (
+                  <Link to="/login" className="bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 text-white font-medium rounded-xl transition-all duration-200 shadow-md shadow-blue-950/40 text-sm px-4 py-2 flex items-center gap-2">
+                    <UserRound size={20} strokeWidth={2} className="shrink-0 text-white" />
+                    <span>Sign In</span>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Three-Dot Menu */}
           <div className="relative" ref={dropdownRef}>
@@ -87,66 +134,179 @@ export const Navbar = () => {
               aria-label="Menu"
               aria-haspopup="true"
               aria-expanded={isOpen}
-              className="btn-secondary p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center"
+              className="p-1.5 sm:p-2 bg-transparent border-0 border-none shadow-none theme-text-primary hover:text-brand-400 transition-colors duration-200 flex items-center justify-center focus:outline-none cursor-pointer relative z-50"
             >
-              <MoreVertical className="w-5 h-5" />
+              <MoreVertical className="w-5.5 h-5.5" />
             </button>
 
-            {/* Dropdown Menu Container */}
+            {/* Backdrop Overlay to blur background page content (below header) when menu is open */}
             {isOpen && (
               <div 
-                className="absolute right-0 mt-2 w-56 rounded-2xl glass-panel shadow-2xl py-2 animate-in fade-in slide-in-from-top-2 duration-150 z-50"
+                className="fixed top-16 inset-x-0 bottom-0 z-40 transition-opacity animate-in fade-in duration-150 pointer-events-auto"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                  backdropFilter: 'blur(6px)',
+                  WebkitBackdropFilter: 'blur(6px)'
+                }}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+              />
+            )}
+
+            {/* Dropdown Menu Container with WHITE highlight border (Compact & Slim) */}
+            {isOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-48 rounded-xl shadow-2xl py-1 animate-in fade-in slide-in-from-top-2 duration-150 z-50 border border-white/50 theme-text-primary overflow-hidden shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                style={{ 
+                  backgroundColor: 'rgba(10, 20, 35, 0.94)', 
+                  backdropFilter: 'none', 
+                  WebkitBackdropFilter: 'none' 
+                }}
                 role="menu"
                 aria-orientation="vertical"
               >
-                <div className="py-1">
-                  <Link
-                    to="/home"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                    }`}
-                    role="menuitem"
-                  >
-                    <Home className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap">Home</span>
-                  </Link>
+                {user ? (
+                  <div className="py-1">
+                    {/* User Header in Menu: logo letter + userName */}
+                    <div className="px-3 py-2 flex items-center gap-2 border-b border-white/20 text-xs font-bold theme-text-primary">
+                      {user?.picture ? (
+                        <img 
+                          src={user.picture} 
+                          alt={displayedUserName} 
+                          className="w-5 h-5 rounded-full object-cover border border-brand-500/40 shrink-0 select-none" 
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-brand-600/30 border border-brand-500/40 text-brand-400 flex items-center justify-center text-[10px] font-bold shrink-0 uppercase select-none">
+                          {firstLetter}
+                        </div>
+                      )}
+                      <span className="truncate text-xs font-semibold">{displayedUserName}</span>
+                    </div>
 
-                  <Link
-                    to="/settings"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      isSettingsActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                    }`}
-                    role="menuitem"
-                  >
-                    <Settings className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap">Settings</span>
-                  </Link>
+                    {/* Navigation Items */}
+                    <div className="py-1 space-y-0.5">
+                      <Link
+                        to="/home"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Home</span>
+                      </Link>
 
-                  <Link
-                    to="/history"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      isHistoryActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                    }`}
-                    role="menuitem"
-                  >
-                    <History className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap">History</span>
-                  </Link>
-                </div>
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isSettingsActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Settings</span>
+                      </Link>
 
-                <div className="border-t border-slate-700/40 pt-1 mt-1">
-                  <button
-                    onClick={handleLogoutClick}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left"
-                    role="menuitem"
-                  >
-                    <LogOut className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap">Logout</span>
-                  </button>
-                </div>
+                      <Link
+                        to="/history"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isHistoryActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <History className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">History</span>
+                      </Link>
+                    </div>
+
+                    {/* Logout Option */}
+                    <div className="border-t border-white/20 pt-1 mt-0.5">
+                      <button
+                        onClick={handleLogoutClick}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors text-left cursor-pointer"
+                        role="menuitem"
+                      >
+                        <LogOut className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 py-1">
+                    <div className="py-0.5 space-y-0.5">
+                      <Link
+                        to="/home"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Home</span>
+                      </Link>
+
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isSettingsActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Settings</span>
+                      </Link>
+
+                      <Link
+                        to="/history"
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          isHistoryActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                        }`}
+                        role="menuitem"
+                      >
+                        <History className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">History</span>
+                      </Link>
+                    </div>
+
+                    <div className="border-t border-white/20 my-0.5 pt-1 space-y-1 pb-0.5">
+                      <div className="px-3 py-0.5 flex items-center gap-2 text-[11px] sm:text-xs font-semibold theme-text-secondary select-none">
+                        <User className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                        <span>Guest Account</span>
+                      </div>
+                      <div className="px-3 flex justify-start">
+                        {isLoginPage ? (
+                          <button
+                            type="button"
+                            disabled
+                            onClick={(e) => e.preventDefault()}
+                            className="px-3 py-1 text-xs font-semibold text-white bg-blue-900 border border-blue-700/60 rounded-lg opacity-50 cursor-not-allowed pointer-events-auto select-none inline-flex items-center gap-1.5"
+                            style={{ cursor: 'not-allowed' }}
+                            aria-disabled="true"
+                          >
+                            <LogIn size={15} strokeWidth={2} className="shrink-0 text-white rotate-90" />
+                            <span className="whitespace-nowrap">Login</span>
+                          </button>
+                        ) : (
+                          <Link
+                            to="/login"
+                            onClick={() => setIsOpen(false)}
+                            className="px-3 py-1 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 rounded-lg transition-all duration-200 shadow-md shadow-blue-950/40 inline-flex items-center gap-1.5"
+                            role="menuitem"
+                          >
+                            <LogIn size={15} strokeWidth={2} className="shrink-0 text-white rotate-90" />
+                            <span className="whitespace-nowrap">Login</span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

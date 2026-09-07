@@ -11,17 +11,20 @@ export const ThemeProvider = ({ children }) => {
 
   const applyTheme = (themeValue) => {
     const root = document.documentElement;
-    root.classList.remove('light-theme', 'dark-theme');
 
     if (themeValue === 'light') {
+      root.classList.remove('dark-theme');
       root.classList.add('light-theme');
     } else if (themeValue === 'dark') {
+      root.classList.remove('light-theme');
       root.classList.add('dark-theme');
     } else if (themeValue === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (prefersDark) {
+        root.classList.remove('light-theme');
         root.classList.add('dark-theme');
       } else {
+        root.classList.remove('dark-theme');
         root.classList.add('light-theme');
       }
     }
@@ -32,9 +35,17 @@ export const ThemeProvider = ({ children }) => {
 
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme('system');
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
+      const handleChange = () => {
+        applyTheme('system');
+      };
+
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+      } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+      }
     }
   }, [theme]);
 

@@ -139,10 +139,10 @@ body::after {
 
 .input-field {
   background-color: var(--bg-input);
-  border: 2px solid #10b981;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-primary);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  @apply focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/25 focus:outline-none rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 outline-none transition-all duration-200 w-full;
+  @apply focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25 focus:outline-none rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 outline-none transition-all duration-200 w-full;
 }
 
 .input-field::placeholder {
@@ -175,6 +175,84 @@ body::after {
   @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
+.auth-card label,
+.form-label,
+.auth-label {
+  color: #D9E2F0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-bottom: 8px !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+}
+
+.auth-card input,
+.auth-input {
+  background-color: var(--bg-input) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  @apply focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25 focus:outline-none rounded-xl py-3 outline-none transition-all duration-200;
+  padding-left: 44px !important;
+}
+
+.auth-card input::placeholder,
+.auth-input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Fix Browser Autofill / Auto-complete Background and Text Colors */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active,
+.auth-card input:-webkit-autofill,
+.auth-card input:-webkit-autofill:hover,
+.auth-card input:-webkit-autofill:focus,
+.auth-card input:-webkit-autofill:active,
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus,
+.input-field:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  transition: background-color 50000s ease-in-out 0s;
+  border-color: #10b981 !important;
+}
+
+html.light-theme input:-webkit-autofill,
+html.light-theme input:-webkit-autofill:hover,
+html.light-theme input:-webkit-autofill:focus,
+html.light-theme input:-webkit-autofill:active,
+html.light-theme .auth-input:-webkit-autofill,
+html.light-theme .auth-card input:-webkit-autofill,
+html.light-theme .input-field:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
 @media (max-width: 600px) {
   .home-heading {
     white-space: nowrap !important;
@@ -190,4 +268,57 @@ body::after {
     flex: 1 1 0% !important;
     min-width: 0 !important;
   }
+
+  .auth-card {
+    width: calc(100% - 32px) !important;
+    max-width: 420px !important;
+    margin: 20px auto !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  .auth-card h1, .auth-card h2 {
+    font-size: 28px !important;
+  }
+
+  .auth-card p.auth-subtitle {
+    font-size: 14px !important;
+  }
+
+  .auth-card label,
+  .auth-card .auth-label,
+  .auth-card .form-label {
+    display: block !important;
+    color: #D9E2F0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .auth-card input {
+    width: 100% !important;
+    height: 52px !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
+    padding-left: 44px !important;
+    border-radius: 12px !important;
+  }
+
+  .auth-card input::placeholder {
+    color: #7f8da3 !important;
+    opacity: 1 !important;
+  }
+
+  .auth-card .form-group {
+    margin-bottom: 16px !important;
+  }
+
+  .auth-card button[type="submit"] {
+    width: 100% !important;
+    min-height: 50px !important;
+  }
 }
+
+

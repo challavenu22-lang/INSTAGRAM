@@ -35,8 +35,13 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  const login = async (email, password) => {
-    const res = await authService.login(email, password);
+  const register = async (fullName, userName, email, password) => {
+    const res = await authService.register(fullName, userName, email, password);
+    return res;
+  };
+
+  const login = async (identifier, password) => {
+    const res = await authService.login(identifier, password);
     if (res.success && res.token) {
       localStorage.setItem('auth_token', res.token);
       setUser(res.user);
@@ -48,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await authService.logout();
     } catch (e) {
-      // Ignore logout API error if token already expired
+      // Ignore API error on logout
     } finally {
       localStorage.removeItem('auth_token');
       setUser(null);
@@ -56,7 +61,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser: fetchUser }}>
+    <AuthContext.Provider value={{ user, setUser, loading, register, login, logout, refreshUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );

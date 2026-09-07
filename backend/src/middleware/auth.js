@@ -35,6 +35,9 @@ export const authenticateUser = async (req, res, next) => {
           select: {
             id: true,
             email: true,
+            username: true,
+            name: true,
+            picture: true,
             emailVerified: true,
             createdAt: true
           }
@@ -87,6 +90,9 @@ export const optionalAuth = async (req, res, next) => {
           select: {
             id: true,
             email: true,
+            username: true,
+            name: true,
+            picture: true,
             emailVerified: true,
             createdAt: true
           }

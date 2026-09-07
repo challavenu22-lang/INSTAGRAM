@@ -1,19 +1,42 @@
-import React, { useState } from 'react';
+
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Search, Clipboard, AlertCircle, CheckCircle2, Loader2, Link2, Sparkles } from 'lucide-react';
 import { videoService } from '../services/videoService';
 import { isValidVideoUrl } from '../utils/validators';
 import { VideoPreviewCard } from '../components/VideoPreviewCard';
+import { Modal } from '../components/Modal';
 import { storageService } from '../services/storageService';
+import { historyService } from '../services/historyService';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../hooks/useAuth';
 
 export const Home = () => {
+  const location = useLocation();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadState, setDownloadState] = useState('IDLE'); // 'IDLE' | 'DOWNLOAD_STARTED' | 'DOWNLOAD_SUCCESS' | 'DOWNLOAD_FAILED'
   const [video, setVideo] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [sessionDownloadedUrls, setSessionDownloadedUrls] = useState(new Set());
+  const searchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (location.state?.previewVideo) {
+      setVideo(location.state.previewVideo);
+      if (location.state?.initialUrl || location.state?.previewVideo?.sourceUrl) {
+        setUrl(location.state.initialUrl || location.state.previewVideo.sourceUrl);
+      }
+      setError(null);
+      setSuccess(null);
+    }
+  }, [location.state]);
 
   const handlePaste = async (e) => {
     if (e) {
@@ -48,8 +71,12 @@ export const Home = () => {
       e.preventDefault();
       e.stopPropagation();
     }
+    // Clear all previous errors, notifications, download state and previous video result immediately
     setError(null);
     setSuccess(null);
+    setDownloadState('IDLE');
+    setDownloading(false);
+    setVideo(null);
 
     const currentUrl = url.trim();
     if (!currentUrl) {
@@ -62,14 +89,17 @@ export const Home = () => {
       return;
     }
 
-    // Reset previous preview state and start searching
-    setVideo(null);
+    const currentRequestId = ++searchRequestIdRef.current;
     setLoading(true);
 
     try {
       const res = await videoService.search(currentUrl);
+      if (currentRequestId !== searchRequestIdRef.current) {
+        return;
+      }
+
       if (res.success && res.data) {
-        // Display result FIRST
+        // Display new result FIRST
         setVideo(res.data);
         // Clear input ONLY after successful fetch
         setUrl('');
@@ -77,51 +107,104 @@ export const Home = () => {
         setError('Unable to find this video. Please check the Instagram URL.');
       }
     } catch (err) {
+      if (currentRequestId !== searchRequestIdRef.current) {
+        return;
+      }
       setError(err.message || 'Unable to find this video. Please check the Instagram URL.');
     } finally {
-      setLoading(false);
+      if (currentRequestId === searchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const handleDownload = async () => {
+    if (downloading || downloadState === 'DOWNLOAD_STARTED') return;
+    
     const targetUrl = video?.sourceUrl || video?.streamUrl || url.trim();
     if (!targetUrl) return;
+
+    const sourceUrlCheck = video?.sourceUrl || targetUrl;
+    const cleanId = storageService.normalizeUrl(sourceUrlCheck);
 
     setError(null);
     setSuccess(null);
     setDownloading(true);
+    setDownloadState('DOWNLOAD_STARTED');
 
     const userSettings = storageService.getSettings();
 
     try {
       const filenameHint = video?.title ? `${video.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.mp4` : 'downloaded_video.mp4';
-      const downloaded = await videoService.downloadStream(targetUrl, filenameHint);
-      if (downloaded) {
+      
+      // 1. DOWNLOAD FIRST: Wait for actual download stream completion
+      const result = await videoService.downloadStream(targetUrl, filenameHint);
+
+      if (result?.cancelled) {
+        // User cancelled Save As dialog: reset state quietly without toast or history
+        setDownloadState('IDLE');
+        return;
+      }
+
+      if (result?.success) {
+        // 2. DOWNLOAD_SUCCESS STATE
+        setDownloadState('DOWNLOAD_SUCCESS');
         setSuccess('Download completed successfully!');
 
-        // Auto Save to History if enabled
-        if (userSettings.autoSaveHistory !== false) {
-          storageService.addHistoryItem({
-            id: Date.now().toString(),
-            title: video?.title || 'Instagram Video',
-            sourceUrl: targetUrl,
-            thumbnailUrl: video?.thumbnailUrl || '',
-            status: 'Completed',
-            downloadedAt: new Date().toISOString()
-          });
-        }
+        // Mark as downloaded in session and local tracking cache
+        setSessionDownloadedUrls(prev => {
+          const updated = new Set(prev);
+          if (sourceUrlCheck) updated.add(sourceUrlCheck);
+          if (cleanId) updated.add(cleanId);
+          return updated;
+        });
+        storageService.markAsDownloaded(sourceUrlCheck);
 
-        // Show Download Complete notification if enabled
+        // 3. SUCCESS NOTIFICATION: Always show in-app toast if notifyComplete is enabled
         if (userSettings.notifyComplete !== false) {
           showToast({
             type: 'success',
             title: '✓ Download Complete',
-            message: 'Your video has been downloaded successfully.'
+            message: 'Download completed successfully!'
           });
         }
+
+        // 4. HISTORY LOGIC: Only save if user is AUTHENTICATED
+        if (user && user?.id && userSettings.autoSaveHistory !== false) {
+          const displayTitle = targetUrl 
+            ? `Instagram Video (${targetUrl})` 
+            : (video?.title || 'Instagram Video');
+
+          const historyPayload = {
+            id: Date.now().toString(),
+            title: displayTitle,
+            sourceUrl: targetUrl,
+            thumbnailUrl: video?.thumbnailUrl || '',
+            status: 'Completed',
+            downloadedAt: new Date().toISOString()
+          };
+
+          // Save to user-scoped local storage
+          storageService.addHistoryItem(historyPayload, user.id);
+
+          // Save to backend database for authenticated user if connected
+          try {
+            await historyService.addHistoryItem({
+              title: historyPayload.title,
+              sourceUrl: historyPayload.sourceUrl,
+              thumbnailUrl: historyPayload.thumbnailUrl,
+              status: 'COMPLETED'
+            });
+          } catch (e) {
+            // Ignore backend API error
+          }
+        }
+      } else {
+        throw new Error('Download process did not complete.');
       }
     } catch (err) {
-      const errMsg = err.message || 'Download failed. Please ensure you have permission to download this media.';
+      setDownloadState('DOWNLOAD_FAILED');
+      const errMsg = err.message || 'Unable to download the video. Please try again.';
       setError(errMsg);
 
       // Show Download Failed notification if enabled
@@ -129,7 +212,7 @@ export const Home = () => {
         showToast({
           type: 'error',
           title: '✕ Download Failed',
-          message: 'Unable to download the video.'
+          message: 'Unable to download the video. Please try again.'
         });
       }
     } finally {
@@ -179,16 +262,17 @@ export const Home = () => {
                   }
                 }}
                 placeholder="Paste valid Instagram video URL here (e.g. https://www.instagram.com/reel/...)"
-                className="input-field text-xs sm:text-base py-3.5 sm:py-4 px-4 sm:px-5 pr-14 shadow-inner w-full box-border font-medium"
+                className="input-field text-xs sm:text-base py-3.5 sm:py-4 px-4 sm:px-5 !pr-20 sm:!pr-24 shadow-inner w-full box-border font-medium"
                 disabled={loading || downloading}
               />
               {url && (
                 <button
                   type="button"
                   onClick={() => { setUrl(''); setError(null); setSuccess(null); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 theme-text-muted hover:opacity-100 text-xs sm:text-sm font-medium"
+                  className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 btn-secondary !px-3 !py-1 text-xs font-semibold !rounded-lg shadow-md flex items-center justify-center z-10 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                  title="Clear input"
                 >
-                  Clear
+                  <span>Clear</span>
                 </button>
               )}
             </div>
@@ -232,29 +316,29 @@ export const Home = () => {
               <div className="flex-1 font-medium">{error}</div>
             </div>
           )}
-
-          {success && (
-            <div className="mt-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-sm flex items-center gap-3 animate-in fade-in duration-200">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              <div className="font-medium">{success}</div>
-            </div>
-          )}
         </div>
 
         {/* Video Preview Section */}
         {video && (
           <VideoPreviewCard 
+            key={video.sourceUrl || video.streamUrl || video.title}
             video={video} 
             onDownload={handleDownload} 
             downloading={downloading}
           />
         )}
 
-        {/* Fast & Easy Downloads Footer Note */}
-        <div className="mt-10 text-center max-w-lg mx-auto leading-relaxed">
+        {/* Footer Info Cards */}
+        <div className="mt-10 text-center max-w-lg mx-auto leading-relaxed space-y-3">
           <div className="glass-panel px-5 py-3.5 rounded-2xl border shadow-sm text-xs theme-text-primary font-medium inline-block">
             <p>
               ⚡ <strong>Fast & Easy Downloads</strong>: Paste an Instagram video URL above and download your video in seconds.
+            </p>
+          </div>
+
+          <div className="glass-panel px-5 py-3.5 rounded-2xl border shadow-sm text-xs theme-text-primary font-medium inline-block">
+            <p>
+              🔐 <strong>Secure & Personalized:</strong> Log in to save your download history securely and access it anytime from your account.
             </p>
           </div>
         </div>

@@ -11,6 +11,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [video, setVideo] = useState(null);
+  const [downloadedUrls, setDownloadedUrls] = useState([]);
 
   const handleSearch = async () => {
     const trimmed = url.trim();
@@ -34,20 +35,37 @@ export default function HomeScreen() {
     }
   };
 
-  const handleDownload = async () => {
-    const targetUrl = url.trim() || video?.sourceUrl;
-    if (!targetUrl) return;
-
+  const executeDownload = async (targetUrl) => {
     setDownloading(true);
     try {
       // Send download request to server which logs history
       const res = await api.post('/video/search', { url: targetUrl });
-      Alert.alert('Download Triggered', 'Authorized video download initiated and recorded in your history log!');
+      setDownloadedUrls(prev => [...prev, targetUrl]);
+      Alert.alert('Download Complete', 'Your video download has been completed and recorded in your history log!');
     } catch (err) {
       Alert.alert('Download Failed', err.message || 'Permission denied or unsupported URL.');
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleDownload = async (force = false) => {
+    const targetUrl = url.trim() || video?.sourceUrl;
+    if (!targetUrl) return;
+
+    if (!force && downloadedUrls.includes(targetUrl)) {
+      Alert.alert(
+        'Video Already Downloaded',
+        'You have already downloaded this video. Do you want to download it again?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Download Again', onPress: () => executeDownload(targetUrl) }
+        ]
+      );
+      return;
+    }
+
+    await executeDownload(targetUrl);
   };
 
   return (

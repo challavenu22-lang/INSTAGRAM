@@ -14,6 +14,7 @@ import { logger } from '../utils/logger.js';
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const mediaStreamCache = new Map();
+const thumbnailCache = new Map();
 
 function getCachedMediaUrl(shortcode) {
   const cached = mediaStreamCache.get(shortcode);
@@ -26,6 +27,23 @@ function getCachedMediaUrl(shortcode) {
 function setCachedMediaUrl(shortcode, url) {
   if (shortcode && url) {
     mediaStreamCache.set(shortcode, {
+      url,
+      expiry: Date.now() + 10 * 60 * 1000
+    });
+  }
+}
+
+function getCachedThumbnailUrl(shortcode) {
+  const cached = thumbnailCache.get(shortcode);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.url;
+  }
+  return null;
+}
+
+function setCachedThumbnailUrl(shortcode, url) {
+  if (shortcode && url) {
+    thumbnailCache.set(shortcode, {
       url,
       expiry: Date.now() + 10 * 60 * 1000
     });
@@ -74,6 +92,10 @@ export const downloadService = {
           const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
           if (resolved && resolved.startsWith('http')) {
             streamUrl = resolved;
+          }
+          const cachedThumb = getCachedThumbnailUrl(shortcode);
+          if (cachedThumb) {
+            thumbnailUrl = cachedThumb;
           }
         } catch (e) {
           logger.warn('Direct media pre-extraction error, falling back to stream proxy', { error: e.message });
@@ -163,36 +185,15 @@ export const downloadService = {
           res.setHeader('Content-Length', contentLength);
         }
 
-        let historyRecord = null;
-        if (userId) {
-          historyRecord = await prisma.downloadHistory.create({
-            data: {
-              userId,
-              sourceUrl: targetUrl,
-              sourceDomain: hostname,
-              title: cleanFilename,
-              thumbnailUrl: null,
-              status: 'COMPLETED',
-              fileSize: contentLength || null
-            }
-          });
-        }
-
         remoteRes.pipe(res);
 
         remoteRes.on('end', () => {
-          logger.info('Video download completed successfully', { historyId: historyRecord?.id, userId });
+          logger.info('Video download completed successfully', { userId });
           resolve();
         });
 
         remoteRes.on('error', async (err) => {
           logger.error('Stream error during download', { error: err.message });
-          if (historyRecord) {
-            await prisma.downloadHistory.update({
-              where: { id: historyRecord.id },
-              data: { status: 'FAILED' }
-            });
-          }
           reject({ status: 500, message: 'Video stream interrupted during download.' });
         });
       });
@@ -318,10 +319,24 @@ export const downloadService = {
       const bodyReel = await httpGetBot(`https://www.instagram.com/reel/${shortcode}/`);
       const cleanBody = (bodyReel || '').replace(/\\\/|\\/g, '/').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
 
+      const ogImgMatch = cleanBody.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                         cleanBody.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+      let extractedThumbnail = ogImgMatch ? ogImgMatch[1] : null;
+      if (!extractedThumbnail) {
+        const imgUrls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:jpg|jpeg|webp|png)[^\s"'<>]*/gi) || [];
+        if (imgUrls.length > 0) {
+          extractedThumbnail = imgUrls[0];
+        }
+      }
+      if (extractedThumbnail) {
+        setCachedThumbnailUrl(shortcode, downloadService.cleanMediaUrl(extractedThumbnail));
+      }
+
       const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.mp4[^\s"'<>]*/gi) || [];
 
-      let videoUrl = null;
       let audioUrl = null;
+      let progressiveUrl = null;
+      let dashVideoUrl = null;
 
       for (const u of urls) {
         const c = downloadService.cleanMediaUrl(u);
@@ -332,22 +347,24 @@ export const downloadService = {
             const decoded = Buffer.from(decodeURIComponent(efgMatch[1]), 'base64').toString('utf8');
             if (decoded.includes('audio') && !audioUrl) {
               audioUrl = c;
-            } else if ((decoded.includes('progressive') || decoded.includes('dash_baseline') || decoded.includes('clips')) && !videoUrl) {
-              videoUrl = c;
+            } else if (decoded.includes('progressive') && !progressiveUrl) {
+              progressiveUrl = c;
+            } else if ((decoded.includes('dash') || decoded.includes('clips')) && !dashVideoUrl) {
+              dashVideoUrl = c;
             }
           } catch (e) {}
         }
       }
 
-      if (!videoUrl && urls.length > 0) videoUrl = downloadService.cleanMediaUrl(urls[0]);
+      let videoUrl = dashVideoUrl || progressiveUrl || (urls.length > 0 ? downloadService.cleanMediaUrl(urls[0]) : null);
 
-      if (videoUrl && audioUrl) {
-        logger.info('[AUDIO-VIDEO MULTIPLEXING START]', { shortcode, videoUrl: videoUrl.slice(0, 80), audioUrl: audioUrl.slice(0, 80) });
+      if (dashVideoUrl && audioUrl) {
+        logger.info('[AUDIO-VIDEO MULTIPLEXING START]', { shortcode, videoUrl: dashVideoUrl.slice(0, 80), audioUrl: audioUrl.slice(0, 80) });
         const tempVid = path.join('/tmp', `vid_${shortcode}.mp4`);
         const tempAud = path.join('/tmp', `aud_${shortcode}.m4a`);
         const tempOut = path.join('/tmp', `merged_${shortcode}.mp4`);
 
-        await new Promise(r => https.get(videoUrl, res => res.pipe(fs.createWriteStream(tempVid)).on('finish', r)));
+        await new Promise(r => https.get(dashVideoUrl, res => res.pipe(fs.createWriteStream(tempVid)).on('finish', r)));
         await new Promise(r => https.get(audioUrl, res => res.pipe(fs.createWriteStream(tempAud)).on('finish', r)));
 
         await new Promise((resolve, reject) => {
@@ -364,6 +381,9 @@ export const downloadService = {
         logger.info('[AUDIO-VIDEO MULTIPLEXING SUCCESS]', { shortcode, mergedFilePath: tempOut });
         setCachedMediaUrl(shortcode, tempOut);
         return tempOut;
+      } else if (progressiveUrl) {
+        setCachedMediaUrl(shortcode, progressiveUrl);
+        return progressiveUrl;
       } else if (videoUrl) {
         setCachedMediaUrl(shortcode, videoUrl);
         return videoUrl;
@@ -394,10 +414,10 @@ export const downloadService = {
     }
 
     if (!streamMediaUrl || streamMediaUrl.includes('instagram.com') || streamMediaUrl.includes('instagr.am')) {
-      const samplePath = path.join(process.cwd(), 'public', 'sample.mp4');
-      if (fs.existsSync(samplePath)) {
-        streamMediaUrl = samplePath;
-      }
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+      });
     }
 
     if (streamMediaUrl.startsWith('/tmp/') || fs.existsSync(streamMediaUrl)) {
@@ -407,8 +427,15 @@ export const downloadService = {
 
       if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        let start = parseInt(parts[0], 10) || 0;
+        let end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        if (start >= fileSize) {
+          res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+          return res.end();
+        }
+        end = Math.min(end, fileSize - 1);
+        if (start > end) start = 0;
+
         const chunksize = (end - start) + 1;
         const file = fs.createReadStream(streamMediaUrl, { start, end });
         res.writeHead(206, {
@@ -453,25 +480,28 @@ export const downloadService = {
         const contentType = remoteRes.headers['content-type'] || '';
 
         if (contentType.includes('text/html') || (remoteRes.statusCode !== 200 && remoteRes.statusCode !== 206)) {
-          logger.warn('[MEDIA STREAM FALLBACK TO LOCAL STREAM]', {
+          logger.warn('[MEDIA STREAM FALLBACK ERROR]', {
             requestedReelUrl: rawUrl,
             resolvedMediaUrl: streamMediaUrl,
             httpStatus: remoteRes.statusCode
           });
-          const samplePath = path.join(process.cwd(), 'public', 'sample.mp4');
-          if (fs.existsSync(samplePath)) {
-            const stat = fs.statSync(samplePath);
-            res.writeHead(200, {
-              'Content-Length': stat.size,
-              'Content-Type': 'video/mp4',
-              'Accept-Ranges': 'bytes'
-            });
-            fs.createReadStream(samplePath).pipe(res);
-            return resolve();
+          if (rawUrl && rawUrl.includes('sample.mp4')) {
+            const samplePath = path.join(process.cwd(), 'public', 'sample.mp4');
+            if (fs.existsSync(samplePath)) {
+              const stat = fs.statSync(samplePath);
+              res.writeHead(200, {
+                'Content-Length': stat.size,
+                'Content-Type': 'video/mp4',
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+              });
+              fs.createReadStream(samplePath).pipe(res);
+              return resolve();
+            }
           }
           return res.status(400).json({
             success: false,
-            error: 'This video cannot be previewed directly. The source does not provide an accessible video stream.'
+            error: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
           });
         }
 
@@ -487,6 +517,9 @@ export const downloadService = {
 
         res.status(remoteRes.statusCode);
         res.setHeader('Content-Type', 'video/mp4');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         if (remoteRes.headers['content-length']) {
           res.setHeader('Content-Length', remoteRes.headers['content-length']);
         }

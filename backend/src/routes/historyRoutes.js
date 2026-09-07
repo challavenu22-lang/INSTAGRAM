@@ -3,7 +3,8 @@ import {
   getHistory, 
   getHistoryById, 
   deleteHistoryItem, 
-  clearHistory 
+  clearHistory,
+  createHistoryItem
 } from '../controllers/historyController.js';
 import { authenticateUser } from '../middleware/auth.js';
 
@@ -12,6 +13,7 @@ const router = Router();
 router.use(authenticateUser);
 
 router.get('/', getHistory);
+router.post('/', createHistoryItem);
 router.delete('/', clearHistory);
 router.get('/:id', getHistoryById);
 router.delete('/:id', deleteHistoryItem);

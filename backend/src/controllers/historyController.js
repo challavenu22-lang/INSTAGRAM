@@ -38,3 +38,12 @@ export const clearHistory = async (req, res, next) => {
     next(error);
   }
 };
+
+export const createHistoryItem = async (req, res, next) => {
+  try {
+    const item = await historyService.createHistoryItem(req.user.id, req.body);
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    next(error);
+  }
+};
