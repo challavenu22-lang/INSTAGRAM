@@ -3,7 +3,10 @@ import axios from 'axios';
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    return `http://${window.location.hostname}:5005/api`;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
+      return `http://${window.location.hostname}:5005/api`;
+    }
   }
   return 'http://localhost:5005/api';
 };
