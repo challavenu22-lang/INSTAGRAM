@@ -90,8 +90,10 @@ export const downloadService = {
       if (shortcode) {
         try {
           const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-          if (resolved && resolved.startsWith('http')) {
+          if (resolved && resolved.startsWith('/tmp/')) {
             streamUrl = resolved;
+          } else {
+            streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
           }
           const cachedThumb = getCachedThumbnailUrl(shortcode);
           if (cachedThumb) {
