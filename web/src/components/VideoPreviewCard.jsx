@@ -50,6 +50,21 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
       key={mediaSource || video?.sourceUrl || video?.title}
       className="w-full max-w-3xl mx-auto mt-8 rounded-3xl glass-panel p-5 sm:p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4"
     >
+      <style>{`
+        video::-webkit-media-controls-overlay-play-button,
+        video::-webkit-media-controls-start-playback-button,
+        video::-webkit-media-controls-play-button-overlay,
+        video::-internal-media-controls-overlay-play-button {
+          display: none !important;
+          -webkit-appearance: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          margin: 0 !important;
+        }
+      `}</style>
       {/* 100% Native HTML5 Video Player Container */}
       <div className="w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-700/50 shadow-inner flex items-center justify-center relative min-h-[220px]">
         {videoError ? (
