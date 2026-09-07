@@ -15,15 +15,33 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   // Force reset error state and ensure unmuted audio & volume initialization
   useEffect(() => {
     setVideoError(false);
-    if (videoRef.current) {
+    const videoEl = videoRef.current;
+    if (videoEl) {
       try {
-        videoRef.current.muted = false;
-        videoRef.current.volume = 1.0;
-        videoRef.current.pause();
-        videoRef.current.load();
+        videoEl.muted = false;
+        videoEl.volume = 1.0;
+        videoEl.pause();
+        videoEl.load();
       } catch (e) {
         // ignore load interruptions
       }
+
+      const unMuteAudio = () => {
+        videoEl.muted = false;
+        videoEl.volume = 1.0;
+      };
+
+      videoEl.addEventListener('play', unMuteAudio);
+      videoEl.addEventListener('playing', unMuteAudio);
+      videoEl.addEventListener('pointerdown', unMuteAudio);
+      videoEl.addEventListener('touchstart', unMuteAudio);
+
+      return () => {
+        videoEl.removeEventListener('play', unMuteAudio);
+        videoEl.removeEventListener('playing', unMuteAudio);
+        videoEl.removeEventListener('pointerdown', unMuteAudio);
+        videoEl.removeEventListener('touchstart', unMuteAudio);
+      };
     }
   }, [mediaSource, video?.sourceUrl, video?.streamUrl]);
 
