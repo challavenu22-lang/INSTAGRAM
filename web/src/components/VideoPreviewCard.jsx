@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Film } from 'lucide-react';
+import { Download, Film, Loader2 } from 'lucide-react';
 import { getApiBaseUrl } from '../services/api';
 
 export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const [videoError, setVideoError] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(true);
   const videoRef = useRef(null);
 
   if (!video) return null;
@@ -12,9 +13,10 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const rawStream = video.streamUrl || video.sourceUrl;
   const mediaSource = rawStream && rawStream.startsWith('/') ? `${API_BASE}${rawStream}` : rawStream;
 
-  // Force reset error state and ensure unmuted audio & volume initialization
+  // Reset states and ensure unmuted audio & volume initialization
   useEffect(() => {
     setVideoError(false);
+    setMediaLoading(true);
     const videoEl = videoRef.current;
     if (videoEl) {
       try {
@@ -65,8 +67,19 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
           margin: 0 !important;
         }
       `}</style>
+
       {/* 100% Native HTML5 Video Player Container */}
-      <div className="w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-700/50 shadow-inner flex items-center justify-center relative min-h-[220px]">
+      <div className="w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-700/50 shadow-inner flex items-center justify-center relative min-h-[260px]">
+        {/* Centered Loading Spinner overlay during video load */}
+        {mediaLoading && !videoError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-[2px] z-10 pointer-events-none transition-opacity duration-300">
+            <div className="flex flex-col items-center justify-center space-y-2.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-700/60 shadow-2xl">
+              <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
+              <span className="text-xs font-semibold text-slate-200 tracking-wide">Loading video...</span>
+            </div>
+          </div>
+        )}
+
         {videoError ? (
           <div className="p-6 text-center space-y-2 theme-text-secondary">
             <Film className="w-10 h-10 mx-auto text-brand-400 opacity-80" />
@@ -88,7 +101,11 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
             muted={false}
             playsInline
             preload="metadata"
-            poster={video.thumbnailUrl && !video.thumbnailUrl.includes('unsplash.com') ? video.thumbnailUrl : undefined}
+            onLoadStart={() => setMediaLoading(true)}
+            onWaiting={() => setMediaLoading(true)}
+            onCanPlay={() => setMediaLoading(false)}
+            onLoadedData={() => setMediaLoading(false)}
+            onPlaying={() => setMediaLoading(false)}
             onPlay={() => {
               if (videoRef.current) {
                 videoRef.current.muted = false;
@@ -96,6 +113,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
               }
             }}
             onError={() => {
+              setMediaLoading(false);
               setVideoError(true);
             }}
             className="w-full max-h-[520px] rounded-2xl bg-black object-contain shadow-md"
