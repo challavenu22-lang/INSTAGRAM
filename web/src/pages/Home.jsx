@@ -51,16 +51,11 @@ export const Home = () => {
         if (text && text.trim()) {
           setUrl(text.trim());
           setError(null);
-          showToast('URL pasted from clipboard!', 'info');
           return;
         }
-        showToast('No text in clipboard. Please copy an Instagram video link first.', 'info');
-        return;
       }
-      showToast('Please allow clipboard access or type the URL directly.', 'info');
     } catch (err) {
       console.warn('Clipboard access restricted:', err);
-      showToast('Please allow clipboard access or paste directly into the box.', 'info');
     }
   };
 
