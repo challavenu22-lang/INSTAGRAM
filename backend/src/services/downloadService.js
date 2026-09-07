@@ -332,7 +332,7 @@ export const downloadService = {
         setCachedThumbnailUrl(shortcode, downloadService.cleanMediaUrl(extractedThumbnail));
       }
 
-      const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.mp4[^\s"'<>]*/gi) || [];
+      const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:mp4|m4a)[^\s"'<>]*/gi) || [];
 
       let audioUrl = null;
       let progressiveUrl = null;
@@ -345,19 +345,29 @@ export const downloadService = {
         if (efgMatch) {
           try {
             const decoded = Buffer.from(decodeURIComponent(efgMatch[1]), 'base64').toString('utf8');
-            if (decoded.includes('audio') && !audioUrl) {
+            if ((decoded.includes('audio') || c.includes('.m4a') || decoded.includes('audio_only')) && !audioUrl) {
               audioUrl = c;
-            } else if (decoded.includes('progressive') && !progressiveUrl) {
+            } else if ((decoded.includes('progressive') || c.includes('_n.mp4') || c.includes('_v.mp4')) && !progressiveUrl) {
               progressiveUrl = c;
             } else if ((decoded.includes('dash') || decoded.includes('clips')) && !dashVideoUrl) {
               dashVideoUrl = c;
             }
           } catch (e) {}
+        } else if (c.includes('_n.mp4') || c.includes('_v.mp4') || c.includes('progressive')) {
+          if (!progressiveUrl) progressiveUrl = c;
+        } else if (c.includes('.m4a') || c.includes('audio')) {
+          if (!audioUrl) audioUrl = c;
         }
       }
 
-      let videoUrl = dashVideoUrl || progressiveUrl || (urls.length > 0 ? downloadService.cleanMediaUrl(urls[0]) : null);
+      // Priority 1: Combined Progressive URL (Contains both Video AND Audio in 1 file)
+      if (progressiveUrl) {
+        logger.info('[MEDIA EXTRACTION] Selected progressive audio+video URL', { shortcode, url: progressiveUrl.slice(0, 80) });
+        setCachedMediaUrl(shortcode, progressiveUrl);
+        return progressiveUrl;
+      }
 
+      // Priority 2: Multiplex DASH video + DASH audio via FFmpeg into combined MP4
       if (dashVideoUrl && audioUrl) {
         logger.info('[AUDIO-VIDEO MULTIPLEXING START]', { shortcode, videoUrl: dashVideoUrl.slice(0, 80), audioUrl: audioUrl.slice(0, 80) });
         const tempVid = path.join('/tmp', `vid_${shortcode}.mp4`);
@@ -381,12 +391,17 @@ export const downloadService = {
         logger.info('[AUDIO-VIDEO MULTIPLEXING SUCCESS]', { shortcode, mergedFilePath: tempOut });
         setCachedMediaUrl(shortcode, tempOut);
         return tempOut;
-      } else if (progressiveUrl) {
-        setCachedMediaUrl(shortcode, progressiveUrl);
-        return progressiveUrl;
-      } else if (videoUrl) {
-        setCachedMediaUrl(shortcode, videoUrl);
-        return videoUrl;
+      }
+
+      // Priority 3: Fall back to non-DASH URL or first extracted URL
+      const fallbackUrl = urls.find(u => {
+        const c = downloadService.cleanMediaUrl(u);
+        return c && (c.includes('_n.mp4') || c.includes('_v.mp4') || !c.includes('dash'));
+      }) || (urls.length > 0 ? downloadService.cleanMediaUrl(urls[0]) : null);
+
+      if (fallbackUrl) {
+        setCachedMediaUrl(shortcode, fallbackUrl);
+        return fallbackUrl;
       }
 
       return null;
