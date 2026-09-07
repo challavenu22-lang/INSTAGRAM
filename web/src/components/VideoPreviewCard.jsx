@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Film, Loader2 } from 'lucide-react';
+import { Download, Film, Loader2, RotateCw } from 'lucide-react';
 import { getApiBaseUrl } from '../services/api';
 
 export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const [videoError, setVideoError] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const videoRef = useRef(null);
 
   if (!video) return null;
@@ -17,6 +18,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   useEffect(() => {
     setVideoError(false);
     setMediaLoading(true);
+    setRetryCount(0);
     const videoEl = videoRef.current;
     if (videoEl) {
       try {
@@ -47,6 +49,17 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
     }
   }, [mediaSource, video?.sourceUrl, video?.streamUrl]);
 
+  const handleRetryStream = () => {
+    setVideoError(false);
+    setMediaLoading(true);
+    setRetryCount(prev => prev + 1);
+    if (videoRef.current) {
+      try {
+        videoRef.current.load();
+      } catch (e) {}
+    }
+  };
+
   return (
     <div 
       key={mediaSource || video?.sourceUrl || video?.title}
@@ -75,20 +88,31 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
           <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-[2px] z-10 pointer-events-none transition-opacity duration-300">
             <div className="flex flex-col items-center justify-center space-y-2.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-700/60 shadow-2xl">
               <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
-              <span className="text-xs font-semibold text-slate-200 tracking-wide">Loading video...</span>
+              <span className="text-xs font-semibold text-slate-200 tracking-wide">Loading video stream...</span>
             </div>
           </div>
         )}
 
         {videoError ? (
-          <div className="p-6 text-center space-y-2 theme-text-secondary">
-            <Film className="w-10 h-10 mx-auto text-brand-400 opacity-80" />
-            <p className="font-semibold text-sm theme-text-primary">
-              Video Preview
-            </p>
-            <p className="text-xs theme-text-muted max-w-md mx-auto">
-              Inline video preview is not available for this stream. Click the button below to download the video file directly.
-            </p>
+          <div className="p-6 text-center space-y-3 theme-text-secondary">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center shadow-lg">
+              <Film className="w-7 h-7 text-brand-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-sm theme-text-primary">
+                Video Stream Ready
+              </p>
+              <p className="text-xs theme-text-muted max-w-md mx-auto">
+                Stream preview connecting. You can play or download your video file below.
+              </p>
+            </div>
+            <button
+              onClick={handleRetryStream}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center justify-center gap-2 mx-auto transition-colors shadow-md active:scale-95"
+            >
+              <RotateCw className="w-3.5 h-3.5 text-brand-400" />
+              <span>Load Player Stream</span>
+            </button>
           </div>
         ) : (
           <video
