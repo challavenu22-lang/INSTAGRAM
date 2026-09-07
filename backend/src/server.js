@@ -71,6 +71,7 @@ app.get('/api/health', async (req, res) => {
 
 // API Routes
 app.use('/api', apiRateLimiter, apiRoutes);
+app.use('/', apiRateLimiter, apiRoutes);
 
 // 404 Handler
 app.use((req, res) => {
