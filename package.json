@@ -9,6 +9,6 @@
     "dev:web": "npm --prefix web run dev",
     "dev:mobile": "npm --prefix mobile run dev",
     "install:all": "npm --prefix backend install && npm --prefix web install && npm --prefix mobile install",
-    "build": "npm --prefix web run build"
+    "build": "npm --prefix web install && npm --prefix web run build"
   }
 }
