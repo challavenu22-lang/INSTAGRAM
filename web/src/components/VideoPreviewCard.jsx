@@ -12,11 +12,13 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const rawStream = video.streamUrl || video.sourceUrl;
   const mediaSource = rawStream && rawStream.startsWith('/') ? `${API_BASE}${rawStream}` : rawStream;
 
-  // Force reset error state and trigger media reload whenever video/mediaSource updates
+  // Force reset error state and ensure unmuted audio & volume initialization
   useEffect(() => {
     setVideoError(false);
     if (videoRef.current) {
       try {
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
         videoRef.current.pause();
         videoRef.current.load();
       } catch (e) {
@@ -54,12 +56,17 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
             playsInline
             preload="metadata"
             poster={video.thumbnailUrl && !video.thumbnailUrl.includes('unsplash.com') ? video.thumbnailUrl : undefined}
+            onPlay={() => {
+              if (videoRef.current) {
+                videoRef.current.muted = false;
+                videoRef.current.volume = 1.0;
+              }
+            }}
             onError={() => {
               setVideoError(true);
             }}
             className="w-full max-h-[520px] rounded-2xl bg-black object-contain shadow-md"
           >
-            <source src={mediaSource} type="video/mp4" />
             Your browser does not support native HTML5 video playback.
           </video>
         )}
