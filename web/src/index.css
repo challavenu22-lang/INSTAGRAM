@@ -322,18 +322,18 @@ html.light-theme .input-field:-webkit-autofill {
 }
 
 /* Hide browser center overlay play button completely while preserving bottom controls */
-video::-webkit-media-controls-overlay-play-button {
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-play-button-overlay,
+video::-internal-media-controls-overlay-play-button {
   display: none !important;
   -webkit-appearance: none !important;
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
-}
-
-video::-webkit-media-controls-start-playback-button {
-  display: none !important;
-  -webkit-appearance: none !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
 }
 
 
