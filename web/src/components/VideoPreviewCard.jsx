@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, Film } from 'lucide-react';
+import { getApiBaseUrl } from '../services/api';
 
 export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const [videoError, setVideoError] = useState(false);
@@ -7,7 +8,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
 
   if (!video) return null;
 
-  const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5005';
+  const API_BASE = getApiBaseUrl();
   const rawStream = video.streamUrl || video.sourceUrl;
   const mediaSource = rawStream && rawStream.startsWith('/') ? `${API_BASE}${rawStream}` : rawStream;
 
@@ -49,6 +50,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
             controls
             controlsList="nodownload"
             autoPlay={false}
+            muted={false}
             playsInline
             preload="metadata"
             poster={video.thumbnailUrl && !video.thumbnailUrl.includes('unsplash.com') ? video.thumbnailUrl : undefined}

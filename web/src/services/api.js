@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const getApiUrl = () => {
+export const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -9,6 +9,11 @@ const getApiUrl = () => {
     }
   }
   return 'http://localhost:5005/api';
+};
+
+export const getApiBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace(/\/api\/?$/, '');
 };
 
 const API_URL = getApiUrl();

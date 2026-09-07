@@ -1,4 +1,4 @@
-import api from './api';
+import api, { getApiUrl } from './api';
 import { storageService } from './storageService';
 import { folderStorageService } from './folderStorageService';
 
@@ -35,13 +35,6 @@ export const videoService = {
     }
 
     const token = localStorage.getItem('auth_token');
-    const getApiUrl = () => {
-      if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-      if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-        return `http://${window.location.hostname}:5005/api`;
-      }
-      return 'http://localhost:5005/api';
-    };
     const API_URL = getApiUrl();
     
     const response = await fetch(`${API_URL}/video/download`, {
