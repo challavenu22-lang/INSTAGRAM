@@ -25,25 +25,22 @@ function getDatabaseUrl() {
 
   let sourcePath = candidatePaths.find(p => fs.existsSync(p) && fs.statSync(p).size > 0);
 
-  const isVercel = Boolean(process.env.VERCEL || process.env.NOW_REGION || process.env.AWS_EXECUTION_ENV);
   const tmpDbPath = '/tmp/dev.db';
 
-  if (isVercel || sourcePath) {
-    if (sourcePath) {
+  if (sourcePath) {
+    try {
+      fs.copyFileSync(sourcePath, tmpDbPath);
       try {
-        fs.copyFileSync(sourcePath, tmpDbPath);
-        try {
-          fs.chmodSync(tmpDbPath, 0o777);
-        } catch (chmodErr) {}
-        return `file://${tmpDbPath}`;
-      } catch (e) {
-        console.error('Failed to copy database file to /tmp:', e.message);
-      }
-    }
-
-    if (fs.existsSync(tmpDbPath)) {
+        fs.chmodSync(tmpDbPath, 0o777);
+      } catch (chmodErr) {}
       return `file://${tmpDbPath}`;
+    } catch (e) {
+      console.error('Failed to copy database file to /tmp:', e.message);
     }
+  }
+
+  if (fs.existsSync(tmpDbPath)) {
+    return `file://${tmpDbPath}`;
   }
 
   const finalPath = sourcePath || path.resolve(__dirname, '../../prisma/dev.db');
