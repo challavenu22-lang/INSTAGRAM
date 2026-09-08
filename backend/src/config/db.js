@@ -6,6 +6,7 @@ function getDatabaseUrl() {
   let rawUrl = process.env.DATABASE_URL || 'file:./dev.db';
   if (!rawUrl.startsWith('file:')) return rawUrl;
 
+  const rawPath = rawUrl.replace('file:', '');
   const candidatePaths = [
     path.resolve(process.cwd(), 'backend', 'prisma', 'dev.db'),
     path.resolve(process.cwd(), 'prisma', 'dev.db'),
