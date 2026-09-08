@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Clipboard, AlertCircle, CheckCircle2, Loader2, Link2, Sparkles } from 'lucide-react';
+import { Search, Clipboard, AlertCircle, CheckCircle2, Loader2, Link2, Sparkles, Download } from 'lucide-react';
 import { videoService } from '../services/videoService';
 import { isValidVideoUrl } from '../utils/validators';
 import { VideoPreviewCard } from '../components/VideoPreviewCard';
@@ -226,8 +226,11 @@ export const Home = () => {
       <Sparkles className="hidden sm:block absolute bottom-36 left-1/4 w-5 h-5 text-indigo-400/40 animate-pulse pointer-events-none z-0" />
 
       <div className="relative z-10 w-[calc(100%-32px)] max-w-4xl mx-auto px-0 sm:px-6">
-        {/* Header Container */}
+        {/* Header Container with Video Logo */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10 overflow-hidden px-1">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-brand-600/20 border border-brand-500/35 flex items-center justify-center text-brand-400 mx-auto mb-4 shadow-xl shadow-brand-500/10">
+            <Download className="w-7 h-7 sm:w-8 sm:h-8 text-brand-400" />
+          </div>
           <h1 className="home-heading text-[clamp(18px,5.4vw,48px)] font-extrabold theme-text-primary tracking-tight leading-tight whitespace-nowrap text-center">
             Instagram Video Downloader
           </h1>
