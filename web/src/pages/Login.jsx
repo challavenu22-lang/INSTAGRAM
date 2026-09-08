@@ -99,12 +99,20 @@ export const Login = () => {
                 }}
                 onInput={(e) => {
                   const val = e.target.value.toLowerCase();
+                  setIdentifier(val);
+                }}
+                onKeyUp={(e) => {
+                  const val = e.target.value.toLowerCase();
                   if (identifier !== val) setIdentifier(val);
+                }}
+                onBlur={() => {
+                  setIdentifier(prev => prev.toLowerCase());
                 }}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck="false"
                 placeholder="Enter your User ID or Email"
+                style={{ textTransform: 'lowercase' }}
                 className={`auth-input lowercase !pl-[44px] !pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
             </div>
