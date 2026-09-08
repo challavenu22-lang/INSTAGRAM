@@ -97,6 +97,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
           ref={videoRef}
           key={mediaSource}
           src={mediaSource}
+          poster={video?.thumbnailUrl || video?.thumbnail || video?.picture || video?.poster}
           controls
           controlsList="nodownload"
           autoPlay={false}

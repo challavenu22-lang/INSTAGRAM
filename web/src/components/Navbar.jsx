@@ -8,7 +8,8 @@ import {
   MoreVertical,
   User,
   UserRound,
-  LogIn
+  LogIn,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -64,13 +65,9 @@ export const Navbar = () => {
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
-          <svg 
-            className="w-6 h-6 sm:w-7 sm:h-7 fill-current shrink-0" 
-            viewBox="0 0 24 24" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M12.707 2.293a1 1 0 00-1.414 0l-9 9A1 1 0 003 13h1v7a2 2 0 002 2h4a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h4a2 2 0 002-2v-7h1a1 1 0 00.707-1.707l-9-9z" />
-          </svg>
+          <div className="w-8 h-8 rounded-xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center text-brand-500 shrink-0">
+            <Download className="w-5 h-5 text-brand-400" />
+          </div>
           <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">Home</span>
         </Link>
 
