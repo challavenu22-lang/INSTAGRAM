@@ -25,18 +25,34 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   const statusCode = err.statusCode || err.status || (typeof err.status === 'number' ? err.status : 500);
-  const publicMessage = (statusCode >= 400 && statusCode < 500 && err.message)
-    ? err.message
-    : (err.message || 'Something went wrong. Please try again.');
+
+  let publicMessage = 'Something went wrong. Please try again.';
+
+  if (statusCode >= 400 && statusCode < 500 && err.message) {
+    publicMessage = err.message;
+  }
+
+  // Never leak raw Prisma, SQL, or internal database engine errors to client UI
+  if (
+    publicMessage.includes('prisma.') ||
+    publicMessage.includes('PrismaClient') ||
+    publicMessage.includes('datasource') ||
+    publicMessage.includes('database file') ||
+    publicMessage.includes('Validation Error') ||
+    publicMessage.includes('invocation:')
+  ) {
+    publicMessage = (statusCode >= 400 && statusCode < 500)
+      ? 'An account with this User ID or email address already exists.'
+      : 'Something went wrong. Please try again later.';
+  }
 
   res.status(statusCode).json({
     success: false,
     error: publicMessage,
-    debugInfo: {
+    debugInfo: process.env.NODE_ENV === 'development' ? {
       message: err.message,
       name: err.name,
-      code: err.code,
-      stack: err.stack ? err.stack.split('\n').slice(0, 4).join(' | ') : null
-    }
+      code: err.code
+    } : undefined
   });
 };

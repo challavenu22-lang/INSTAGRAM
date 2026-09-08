@@ -142,7 +142,10 @@ export const Register = () => {
       setRegResult(res);
       setRegisteredSuccess(true);
     } catch (err) {
-      const errMsg = err.message || 'Unable to create account. Please try again.';
+      let errMsg = err.message || 'Unable to create account. Please try again.';
+      if (errMsg.includes('prisma') || errMsg.includes('invocation') || errMsg.includes('datasource') || errMsg.includes('database')) {
+        errMsg = 'An account with this User ID or email address already exists.';
+      }
       const lowerMsg = errMsg.toLowerCase();
       if (lowerMsg.includes('user id') || lowerMsg.includes('username') || lowerMsg.includes('user_id')) {
         setFieldErrors({ ...newErrors, username: errMsg, general: '' });

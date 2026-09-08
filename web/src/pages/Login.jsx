@@ -53,7 +53,11 @@ export const Login = () => {
       await login(identifier.trim(), password);
       navigate('/home');
     } catch (err) {
-      setFieldErrors({ identifier: '', password: '', general: err.message || 'Invalid credentials.' });
+      let errMsg = err.message || 'Invalid credentials.';
+      if (errMsg.includes('prisma') || errMsg.includes('invocation') || errMsg.includes('datasource') || errMsg.includes('database')) {
+        errMsg = 'Invalid email/User ID or password.';
+      }
+      setFieldErrors({ identifier: '', password: '', general: errMsg });
     } finally {
       setLoading(false);
     }
