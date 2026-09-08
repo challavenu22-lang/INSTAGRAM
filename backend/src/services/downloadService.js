@@ -90,7 +90,7 @@ export const downloadService = {
       if (shortcode) {
         try {
           const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-          if (resolved && resolved.startsWith('/tmp/')) {
+          if (resolved && resolved.startsWith('http')) {
             streamUrl = resolved;
           } else {
             streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;

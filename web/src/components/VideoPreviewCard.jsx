@@ -93,58 +93,36 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
           </div>
         )}
 
-        {videoError ? (
-          <div className="p-6 text-center space-y-3 theme-text-secondary">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center shadow-lg">
-              <Film className="w-7 h-7 text-brand-400" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-semibold text-sm theme-text-primary">
-                Video Stream Ready
-              </p>
-              <p className="text-xs theme-text-muted max-w-md mx-auto">
-                Stream preview connecting. You can play or download your video file below.
-              </p>
-            </div>
-            <button
-              onClick={handleRetryStream}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center justify-center gap-2 mx-auto transition-colors shadow-md active:scale-95"
-            >
-              <RotateCw className="w-3.5 h-3.5 text-brand-400" />
-              <span>Load Player Stream</span>
-            </button>
-          </div>
-        ) : (
-          <video
-            ref={videoRef}
-            key={mediaSource}
-            src={mediaSource}
-            controls
-            controlsList="nodownload"
-            autoPlay={false}
-            muted={false}
-            playsInline
-            preload="metadata"
-            onLoadStart={() => setMediaLoading(true)}
-            onWaiting={() => setMediaLoading(true)}
-            onCanPlay={() => setMediaLoading(false)}
-            onLoadedData={() => setMediaLoading(false)}
-            onPlaying={() => setMediaLoading(false)}
-            onPlay={() => {
-              if (videoRef.current) {
-                videoRef.current.muted = false;
-                videoRef.current.volume = 1.0;
-              }
-            }}
-            onError={() => {
-              setMediaLoading(false);
-              setVideoError(true);
-            }}
-            className="w-full max-h-[520px] rounded-2xl bg-black object-contain shadow-md"
-          >
-            Your browser does not support native HTML5 video playback.
-          </video>
-        )}
+        <video
+          ref={videoRef}
+          key={mediaSource}
+          src={mediaSource}
+          controls
+          controlsList="nodownload"
+          autoPlay={false}
+          muted={false}
+          playsInline
+          referrerPolicy="no-referrer"
+          preload="metadata"
+          onLoadStart={() => setMediaLoading(true)}
+          onWaiting={() => setMediaLoading(true)}
+          onCanPlay={() => setMediaLoading(false)}
+          onLoadedData={() => setMediaLoading(false)}
+          onPlaying={() => setMediaLoading(false)}
+          onPlay={() => {
+            if (videoRef.current) {
+              videoRef.current.muted = false;
+              videoRef.current.volume = 1.0;
+            }
+          }}
+          onError={() => {
+            setMediaLoading(false);
+            setVideoError(true);
+          }}
+          className="w-full max-h-[520px] rounded-2xl bg-black object-contain shadow-md"
+        >
+          Your browser does not support native HTML5 video playback.
+        </video>
       </div>
 
       {/* Primary Full-Width Download Button */}
