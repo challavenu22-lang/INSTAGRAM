@@ -24,11 +24,17 @@ function getDatabaseUrl() {
       if (needCopy) {
         fs.copyFileSync(existingPath, tmpDbPath);
       }
+      try {
+        fs.chmodSync(tmpDbPath, 0o666);
+      } catch (chmodErr) {}
       existingPath = tmpDbPath;
     } catch (e) {
       console.error('Failed to copy database file to /tmp:', e.message);
     }
   } else if (fs.existsSync(tmpDbPath) && fs.statSync(tmpDbPath).size > 0) {
+    try {
+      fs.chmodSync(tmpDbPath, 0o666);
+    } catch (chmodErr) {}
     existingPath = tmpDbPath;
   }
 
