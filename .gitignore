@@ -35,6 +35,7 @@ web/.env
 *.db
 backend/prisma/dev.db
 prisma/*.db
+!backend/prisma/template.db
 .vscode/
 .idea/
 *.suo

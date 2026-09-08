@@ -85,7 +85,8 @@ app.use((req, res) => {
 // Centralized Error Handler
 app.use(errorHandler);
 
-if (!process.env.VERCEL) {
+const isMainScript = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].endsWith('server'));
+if (isMainScript && !process.env.VERCEL && !process.env.NOW_REGION && !process.env.AWS_EXECUTION_ENV) {
   app.listen(PORT, () => {
     logger.info(`Video Downloader Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });

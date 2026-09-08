@@ -8,9 +8,13 @@ function getDatabaseUrl() {
 
   const rawPath = rawUrl.replace('file:', '');
   const candidatePaths = [
+    path.resolve(process.cwd(), 'backend', 'prisma', 'template.db'),
     path.resolve(process.cwd(), 'backend', 'prisma', 'dev.db'),
+    path.resolve(process.cwd(), 'prisma', 'template.db'),
     path.resolve(process.cwd(), 'prisma', 'dev.db'),
+    path.resolve('/var/task/backend/prisma', 'template.db'),
     path.resolve('/var/task/backend/prisma', 'dev.db'),
+    path.resolve('/var/task/prisma', 'template.db'),
     path.resolve('/var/task/prisma', 'dev.db'),
     path.resolve(process.cwd(), rawPath.replace(/^\./, ''))
   ];
