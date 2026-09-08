@@ -20,6 +20,13 @@ export const authService = {
       throw { status: 400, message: 'An account with this User ID already exists.' };
     }
 
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: cleanEmail }
+    });
+    if (existingEmail) {
+      throw { status: 400, message: 'An account with this email address already exists.' };
+    }
+
     const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
     const emailVerified = !requireVerification;
 
