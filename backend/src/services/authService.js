@@ -17,14 +17,7 @@ export const authService = {
       where: { username: cleanUsername }
     });
     if (existingUsername) {
-      throw { status: 400, message: 'An account with this User ID already exists.' };
-    }
-
-    const existingEmail = await prisma.user.findFirst({
-      where: { email: cleanEmail }
-    });
-    if (existingEmail) {
-      throw { status: 400, message: 'An account with this email address already exists.' };
+      throw { status: 409, message: 'An account with this User ID already exists.' };
     }
 
     const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
@@ -133,20 +126,28 @@ export const authService = {
       throw { status: 401, message: 'Invalid email/User ID or password.' };
     }
 
-    let matchingUser = null;
+    let matchingUsers = [];
     for (const candidate of candidateUsers) {
       if (candidate.passwordHash) {
         const valid = await verifyPassword(password, candidate.passwordHash);
         if (valid) {
-          matchingUser = candidate;
-          break;
+          matchingUsers.push(candidate);
         }
       }
     }
 
-    if (!matchingUser) {
+    if (matchingUsers.length === 0) {
       throw { status: 401, message: 'Invalid email/User ID or password.' };
     }
+
+    if (matchingUsers.length > 1) {
+      throw {
+        status: 400,
+        message: 'Multiple accounts share this email address. Please sign in using your unique User ID.'
+      };
+    }
+
+    const matchingUser = matchingUsers[0];
 
     if (process.env.REQUIRE_EMAIL_VERIFICATION === 'true' && !matchingUser.emailVerified) {
       throw { status: 400, message: 'Please verify your email address before logging in. Check your email for the verification link.' };

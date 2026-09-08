@@ -36,29 +36,93 @@ export const Register = () => {
     navigate('/home');
   };
 
+  const validateField = (fieldName, fieldValue, allValues) => {
+    const nameVal = fieldName === 'name' ? fieldValue : allValues.name;
+    const usernameVal = fieldName === 'username' ? fieldValue : allValues.username;
+    const emailVal = fieldName === 'email' ? fieldValue : allValues.email;
+    const passwordVal = fieldName === 'password' ? fieldValue : allValues.password;
+    const confirmPasswordVal = fieldName === 'confirmPassword' ? fieldValue : allValues.confirmPassword;
+
+    let err = '';
+    if (fieldName === 'name') {
+      if (!nameVal.trim()) {
+        err = 'Please enter your user name.';
+      }
+    } else if (fieldName === 'username') {
+      const cleanU = usernameVal.trim().toLowerCase();
+      if (!cleanU) {
+        err = 'Please choose a user id.';
+      } else if (cleanU.length < 3) {
+        err = 'User ID must be at least 3 characters long.';
+      } else if (!/^[a-z0-9_]+$/.test(cleanU)) {
+        err = 'User ID must contain only lowercase letters, numbers, and underscores.';
+      }
+    } else if (fieldName === 'email') {
+      const cleanE = emailVal.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!cleanE || !emailRegex.test(cleanE)) {
+        err = 'Please enter a valid email address (e.g. user@example.com).';
+      }
+    } else if (fieldName === 'password') {
+      if (passwordVal.length < 8 || !/[A-Z]/.test(passwordVal) || !/[a-z]/.test(passwordVal) || !/\d/.test(passwordVal) || !/[^A-Za-z0-9]/.test(passwordVal)) {
+        err = 'Must contain at least 8 characters, an uppercase, lowercase, number & special character (@,#,!).';
+      }
+    } else if (fieldName === 'confirmPassword') {
+      if (confirmPasswordVal !== passwordVal) {
+        err = 'Passwords do not match.';
+      }
+    }
+
+    return err;
+  };
+
+  const validateAll = (vals) => {
+    const errors = {
+      name: validateField('name', vals.name, vals),
+      username: validateField('username', vals.username, vals),
+      email: validateField('email', vals.email, vals),
+      password: validateField('password', vals.password, vals),
+      confirmPassword: validateField('confirmPassword', vals.confirmPassword, vals),
+      general: ''
+    };
+    const hasErr = Object.values(errors).some(e => Boolean(e));
+    return { errors, hasErr };
+  };
+
   const handleNameChange = (e) => {
-    setName(e.target.value);
-    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+    const val = e.target.value;
+    setName(val);
+    const newErr = validateField('name', val, { name: val, username, email, password, confirmPassword });
+    setFieldErrors(prev => ({ ...prev, name: newErr }));
   };
 
   const handleUsernameChange = (e) => {
-    setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
-    if (fieldErrors.username) setFieldErrors((prev) => ({ ...prev, username: '' }));
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsername(val);
+    const newErr = validateField('username', val, { name, username: val, email, password, confirmPassword });
+    setFieldErrors(prev => ({ ...prev, username: newErr }));
   };
 
   const handleEmailChange = (e) => {
-    setEmail(e.target.value.toLowerCase());
-    if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
+    const val = e.target.value.toLowerCase();
+    setEmail(val);
+    const newErr = validateField('email', val, { name, username, email: val, password, confirmPassword });
+    setFieldErrors(prev => ({ ...prev, email: newErr }));
   };
 
   const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: '' }));
+    const val = e.target.value;
+    setPassword(val);
+    const pwdErr = validateField('password', val, { name, username, email, password: val, confirmPassword });
+    const cpwdErr = confirmPassword ? validateField('confirmPassword', confirmPassword, { name, username, email, password: val, confirmPassword }) : fieldErrors.confirmPassword;
+    setFieldErrors(prev => ({ ...prev, password: pwdErr, confirmPassword: cpwdErr }));
   };
 
   const handleConfirmPasswordChange = (e) => {
-    setConfirmPassword(e.target.value);
-    if (fieldErrors.confirmPassword) setFieldErrors((prev) => ({ ...prev, confirmPassword: '' }));
+    const val = e.target.value;
+    setConfirmPassword(val);
+    const newErr = validateField('confirmPassword', val, { name, username, email, password, confirmPassword: val });
+    setFieldErrors(prev => ({ ...prev, confirmPassword: newErr }));
   };
 
   const handlePastePassword = (e) => {
@@ -87,47 +151,11 @@ export const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const newErrors = { name: '', username: '', email: '', password: '', confirmPassword: '', general: '' };
-    let hasError = false;
+    const currentVals = { name, username, email, password, confirmPassword };
+    const { errors, hasErr } = validateAll(currentVals);
 
-    const cleanName = name.trim();
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanName) {
-      newErrors.name = 'Please enter your user name.';
-      hasError = true;
-    }
-
-    if (!cleanUsername) {
-      newErrors.username = 'Please choose a user id.';
-      hasError = true;
-    } else if (cleanUsername.length < 3) {
-      newErrors.username = 'User ID must be at least 3 characters long.';
-      hasError = true;
-    } else if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
-      newErrors.username = 'User ID must contain only lowercase letters, numbers, and underscores.';
-      hasError = true;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
-      newErrors.email = 'Please enter a valid email address (e.g. user@example.com).';
-      hasError = true;
-    }
-
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-      newErrors.password = 'Must contain at least 8 characters, an uppercase, lowercase, number & special character (@,#,!).';
-      hasError = true;
-    }
-
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match.';
-      hasError = true;
-    }
-
-    if (hasError) {
-      setFieldErrors(newErrors);
+    if (hasErr) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -135,6 +163,9 @@ export const Register = () => {
     setLoading(true);
 
     try {
+      const cleanName = name.trim();
+      const cleanUsername = username.trim().toLowerCase();
+      const cleanEmail = email.trim().toLowerCase();
       const res = await register(cleanName, cleanUsername, cleanEmail, password);
       if (res?.verificationToken) {
         setVerificationToken(res.verificationToken);
@@ -144,15 +175,13 @@ export const Register = () => {
     } catch (err) {
       let errMsg = err.message || 'Unable to create account. Please try again.';
       if (errMsg.includes('prisma') || errMsg.includes('invocation') || errMsg.includes('datasource') || errMsg.includes('database')) {
-        errMsg = 'An account with this User ID or email address already exists.';
+        errMsg = 'An account with this User ID already exists.';
       }
       const lowerMsg = errMsg.toLowerCase();
       if (lowerMsg.includes('user id') || lowerMsg.includes('username') || lowerMsg.includes('user_id')) {
-        setFieldErrors({ ...newErrors, username: errMsg, general: '' });
-      } else if (lowerMsg.includes('email')) {
-        setFieldErrors({ ...newErrors, email: errMsg, general: '' });
+        setFieldErrors(prev => ({ ...prev, username: errMsg, general: '' }));
       } else {
-        setFieldErrors({ ...newErrors, general: errMsg });
+        setFieldErrors(prev => ({ ...prev, general: errMsg }));
       }
     } finally {
       setLoading(false);
