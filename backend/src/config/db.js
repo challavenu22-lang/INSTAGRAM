@@ -8,7 +8,11 @@ const __dirname = path.dirname(__filename);
 
 function getDatabaseUrl() {
   let rawUrl = process.env.DATABASE_URL || 'file:./dev.db';
-  if (!rawUrl.startsWith('file:')) return rawUrl;
+
+  // Support remote databases if configured (e.g. PostgreSQL, Supabase)
+  if (rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://') || rawUrl.startsWith('mysql://')) {
+    return rawUrl;
+  }
 
   const candidatePaths = [
     path.resolve(__dirname, '../../prisma/template.db'),
@@ -39,7 +43,7 @@ function getDatabaseUrl() {
     }
   }
 
-  if (fs.existsSync(tmpDbPath)) {
+  if (fs.existsSync(tmpDbPath) && fs.statSync(tmpDbPath).size > 0) {
     return `file://${tmpDbPath}`;
   }
 
