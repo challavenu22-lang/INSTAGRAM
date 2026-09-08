@@ -92,9 +92,20 @@ export const Login = () => {
               <input
                 type="text"
                 value={identifier}
-                onChange={handleIdentifierChange}
+                onChange={(e) => {
+                  const val = e.target.value.toLowerCase();
+                  setIdentifier(val);
+                  if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: '' }));
+                }}
+                onInput={(e) => {
+                  const val = e.target.value.toLowerCase();
+                  if (identifier !== val) setIdentifier(val);
+                }}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 placeholder="Enter your User ID or Email"
-                className={`auth-input !pl-[44px] !pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                className={`auth-input lowercase !pl-[44px] !pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
             </div>
             {fieldErrors.identifier && (

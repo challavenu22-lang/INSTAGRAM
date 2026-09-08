@@ -321,6 +321,10 @@ html.light-theme .input-field:-webkit-autofill {
   }
 }
 
+.auth-card input.lowercase {
+  text-transform: lowercase !important;
+}
+
 /* Hide browser center overlay play button completely while preserving bottom controls */
 video::-webkit-media-controls-overlay-play-button,
 video::-webkit-media-controls-start-playback-button,
