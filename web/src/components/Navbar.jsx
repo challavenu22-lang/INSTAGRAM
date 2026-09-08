@@ -59,15 +59,13 @@ export const Navbar = () => {
     <header className="sticky top-0 z-40 w-full glass-panel">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
         
-        {/* Top-Left: Home Navigation Link (Theme-Aware Solid Icon + Text) */}
+        {/* Top-Left: Home Navigation Link (Standard White House Icon + Text) */}
         <Link 
           to="/home" 
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
-          <div className="w-8 h-8 rounded-xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center text-brand-500 shrink-0">
-            <Download className="w-5 h-5 text-brand-400" />
-          </div>
+          <Home className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" />
           <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">Home</span>
         </Link>
 
