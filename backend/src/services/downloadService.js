@@ -430,7 +430,14 @@ export const downloadService = {
       }
     }
 
-    if (!streamMediaUrl || streamMediaUrl.includes('instagram.com') || streamMediaUrl.includes('instagr.am')) {
+    const isUnresolvedPage = typeof streamMediaUrl === 'string' && streamMediaUrl.startsWith('http') && 
+      (streamMediaUrl.includes('instagram.com/reel/') || 
+       streamMediaUrl.includes('instagram.com/p/') || 
+       streamMediaUrl.includes('instagram.com/tv/') ||
+       streamMediaUrl.includes('instagr.am/') ||
+       (streamMediaUrl.includes('www.instagram.com') && !streamMediaUrl.includes('cdninstagram.com')));
+
+    if (!streamMediaUrl || isUnresolvedPage) {
       return res.status(400).json({
         success: false,
         error: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
