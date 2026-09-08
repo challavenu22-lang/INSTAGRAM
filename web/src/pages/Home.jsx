@@ -98,12 +98,14 @@ export const Home = () => {
         // Clear input ONLY after successful fetch
         setUrl('');
       } else {
+        setVideo(null);
         setError('Unable to find this video. Please check the Instagram URL.');
       }
     } catch (err) {
       if (currentRequestId !== searchRequestIdRef.current) {
         return;
       }
+      setVideo(null);
       setError(err.message || 'Unable to find this video. Please check the Instagram URL.');
     } finally {
       if (currentRequestId === searchRequestIdRef.current) {
