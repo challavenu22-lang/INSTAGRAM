@@ -123,7 +123,7 @@ export const authService = {
     });
 
     if (!candidateUsers || candidateUsers.length === 0) {
-      throw { status: 401, message: 'Account not found with this User Name or email.' };
+      throw { status: 401, message: 'Invalid email/User ID or password.' };
     }
 
     let matchingUser = null;
@@ -138,7 +138,7 @@ export const authService = {
     }
 
     if (!matchingUser) {
-      throw { status: 401, message: 'Incorrect password. Please try again.' };
+      throw { status: 401, message: 'Invalid email/User ID or password.' };
     }
 
     if (process.env.REQUIRE_EMAIL_VERIFICATION === 'true' && !matchingUser.emailVerified) {

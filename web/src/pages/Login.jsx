@@ -17,7 +17,7 @@ export const Login = () => {
   const navigate = useNavigate();
 
   const handleIdentifierChange = (e) => {
-    setIdentifier(e.target.value.toLowerCase());
+    setIdentifier(e.target.value);
     if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: '' }));
   };
 

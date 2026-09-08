@@ -42,9 +42,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (identifier, password) => {
     const res = await authService.login(identifier, password);
-    if (res.success && res.token) {
+    if (res && res.token) {
       localStorage.setItem('auth_token', res.token);
-      setUser(res.user);
+      if (res.user) {
+        setUser(res.user);
+      }
     }
     return res;
   };
