@@ -82,11 +82,22 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
       `}</style>
 
       {/* 100% Native HTML5 Video Player Container */}
-      <div className="w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-700/50 shadow-inner flex items-center justify-center relative min-h-[260px]">
+      <div className="w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-700/50 shadow-inner flex items-center justify-center relative min-h-[280px]">
+        {/* Centered Video Logo Overlay (Visible when thumbnail is loading/idle or missing) */}
+        {(!video?.thumbnailUrl && !video?.thumbnail && !video?.picture && !video?.poster) && !videoError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-[2px] z-0 pointer-events-none p-6 text-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-brand-600/20 border border-brand-500/40 flex items-center justify-center text-brand-400 shadow-2xl mb-3">
+              <Download className="w-8 h-8 sm:w-10 sm:h-10 text-brand-400" />
+            </div>
+            <span className="text-base sm:text-lg font-bold text-white tracking-tight">Video Downloader</span>
+            <span className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">Ready to Play & Download</span>
+          </div>
+        )}
+
         {/* Centered Loading Spinner overlay during video load */}
         {mediaLoading && !videoError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-[2px] z-10 pointer-events-none transition-opacity duration-300">
-            <div className="flex flex-col items-center justify-center space-y-2.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-700/60 shadow-2xl">
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-[2px] z-10 pointer-events-none transition-opacity duration-300">
+            <div className="flex flex-col items-center justify-center space-y-2.5 p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl">
               <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
               <span className="text-xs font-semibold text-slate-200 tracking-wide">Loading video stream...</span>
             </div>
