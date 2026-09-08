@@ -2,6 +2,7 @@
   "name": "video-downloader-root",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "npm run dev:backend & npm run dev:web",
     "dev:all": "npm run dev:backend & npm run dev:web & npm run dev:mobile",
@@ -9,6 +10,23 @@
     "dev:web": "npm --prefix web run dev",
     "dev:mobile": "npm --prefix mobile run dev",
     "install:all": "npm --prefix backend install && npm --prefix web install && npm --prefix mobile install",
-    "build": "npm --prefix web install && npm --prefix web run build"
+    "build": "npm --prefix backend install && npm --prefix web install && npm --prefix web run build"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^5.10.0",
+    "@supabase/supabase-js": "^2.113.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "express-rate-limit": "^7.1.5",
+    "ffmpeg-static": "^5.3.0",
+    "google-auth-library": "^11.0.2",
+    "helmet": "^7.1.0",
+    "instagram-url-direct": "^2.0.7",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
   }
 }

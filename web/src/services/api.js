@@ -7,13 +7,17 @@ export const getApiUrl = () => {
     if (isLocal) {
       return `http://${window.location.hostname}:5005/api`;
     }
+    return '/api';
   }
   return 'http://localhost:5005/api';
 };
 
 export const getApiBaseUrl = () => {
   const apiUrl = getApiUrl();
-  return apiUrl.replace(/\/api\/?$/, '');
+  if (apiUrl.startsWith('http')) {
+    return apiUrl.replace(/\/api\/?$/, '');
+  }
+  return '';
 };
 
 const API_URL = getApiUrl();

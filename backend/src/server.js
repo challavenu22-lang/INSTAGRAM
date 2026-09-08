@@ -84,8 +84,10 @@ app.use((req, res) => {
 // Centralized Error Handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`Video Downloader Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    logger.info(`Video Downloader Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  });
+}
 
 export default app;
