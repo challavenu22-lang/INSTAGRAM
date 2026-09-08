@@ -3,16 +3,15 @@ import path from 'path';
 import fs from 'fs';
 
 function getDatabaseUrl() {
-  let url = process.env.DATABASE_URL || 'file:./dev.db';
-  if (!url.startsWith('file:')) return url;
+  let rawUrl = process.env.DATABASE_URL || 'file:./dev.db';
+  if (!rawUrl.startsWith('file:')) return rawUrl;
 
-  const rawPath = url.replace('file:', '');
   const candidatePaths = [
     path.resolve(process.cwd(), 'backend', 'prisma', 'dev.db'),
     path.resolve(process.cwd(), 'prisma', 'dev.db'),
     path.resolve('/var/task/backend/prisma', 'dev.db'),
     path.resolve('/var/task/prisma', 'dev.db'),
-    path.resolve(process.cwd(), rawPath)
+    path.resolve(process.cwd(), rawPath.replace(/^\./, ''))
   ];
 
   let existingPath = candidatePaths.find(p => fs.existsSync(p) && fs.statSync(p).size > 0);
@@ -25,7 +24,7 @@ function getDatabaseUrl() {
         fs.copyFileSync(existingPath, tmpDbPath);
       }
       try {
-        fs.chmodSync(tmpDbPath, 0o666);
+        fs.chmodSync(tmpDbPath, 0o777);
       } catch (chmodErr) {}
       existingPath = tmpDbPath;
     } catch (e) {
@@ -33,16 +32,16 @@ function getDatabaseUrl() {
     }
   } else if (fs.existsSync(tmpDbPath) && fs.statSync(tmpDbPath).size > 0) {
     try {
-      fs.chmodSync(tmpDbPath, 0o666);
+      fs.chmodSync(tmpDbPath, 0o777);
     } catch (chmodErr) {}
     existingPath = tmpDbPath;
   }
 
-  if (existingPath) {
-    return `file:${existingPath}`;
-  }
-
-  return url;
+  const finalPath = existingPath || path.resolve(process.cwd(), 'backend/prisma/dev.db');
+  
+  // Format as valid file:/// URL with 3 slashes for absolute paths
+  const fileUrl = finalPath.startsWith('/') ? `file://${finalPath}` : `file:${finalPath}`;
+  return fileUrl;
 }
 
 const dbUrl = getDatabaseUrl();
