@@ -83,25 +83,38 @@ export const downloadService = {
     if (hostname.includes('instagram.com') || hostname.includes('instagr.am')) {
       const match = urlObj.pathname.match(/\/(reel|p|tv)\/([^\/]+)/);
       const shortcode = match ? match[2] : null;
-      title = shortcode ? `Instagram Video (${shortcode})` : 'Instagram Video';
+      if (!shortcode) {
+        throw {
+          status: 400,
+          message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+        };
+      }
+
+      title = `Instagram Video (${shortcode})`;
       thumbnailUrl = null;
       videoType = 'instagram';
 
-      if (shortcode) {
-        try {
-          const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-          if (resolved && resolved.startsWith('http')) {
-            streamUrl = resolved;
-          } else {
-            streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
-          }
+      try {
+        const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
+        if (resolved && (resolved.startsWith('http') || fs.existsSync(resolved))) {
+          streamUrl = resolved.startsWith('/') ? resolved : `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
           const cachedThumb = getCachedThumbnailUrl(shortcode);
           if (cachedThumb) {
             thumbnailUrl = cachedThumb;
           }
-        } catch (e) {
-          logger.warn('Direct media pre-extraction error, falling back to stream proxy', { error: e.message });
+        } else {
+          throw {
+            status: 400,
+            message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+          };
         }
+      } catch (e) {
+        if (e.status && e.message) throw e;
+        logger.warn('Direct media pre-extraction error', { error: e.message });
+        throw {
+          status: 400,
+          message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+        };
       }
     } else {
       const pathname = urlObj.pathname;
@@ -250,7 +263,7 @@ export const downloadService = {
           const rapidUrl = await new Promise((resolve) => {
             const req = https.request({
               hostname: process.env.RAPIDAPI_HOST || 'instagram-scraper-stable-api.p.rapidapi.com',
-              path: '/get_ig_user_followers_v2.php',
+              path: '/get_media_data.php',
               method: 'POST',
               headers: {
                 'x-rapidapi-key': process.env.RAPIDAPI_KEY,

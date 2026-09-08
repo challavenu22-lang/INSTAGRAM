@@ -99,14 +99,14 @@ export const Home = () => {
         setUrl('');
       } else {
         setVideo(null);
-        setError('Unable to find this video. Please check the Instagram URL.');
+        setError(res.error || res.message || 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.');
       }
     } catch (err) {
       if (currentRequestId !== searchRequestIdRef.current) {
         return;
       }
       setVideo(null);
-      setError(err.message || 'Unable to find this video. Please check the Instagram URL.');
+      setError(err.message || 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.');
     } finally {
       if (currentRequestId === searchRequestIdRef.current) {
         setLoading(false);

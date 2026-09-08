@@ -12,9 +12,11 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "@bochilteam/scraper-instagram": "^5.0.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.10.0",
     "@supabase/supabase-js": "^2.113.0",
+    "ab-downloader": "^2.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -25,6 +27,7 @@
     "helmet": "^7.1.0",
     "instagram-url-direct": "^2.0.7",
     "jsonwebtoken": "^9.0.2",
+    "metascraper-instagram": "^5.56.2",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },
