@@ -27,10 +27,16 @@ export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || err.status || (typeof err.status === 'number' ? err.status : 500);
   const publicMessage = (statusCode >= 400 && statusCode < 500 && err.message)
     ? err.message
-    : 'Something went wrong. Please try again.';
+    : (err.message || 'Something went wrong. Please try again.');
 
   res.status(statusCode).json({
     success: false,
-    error: publicMessage
+    error: publicMessage,
+    debugInfo: {
+      message: err.message,
+      name: err.name,
+      code: err.code,
+      stack: err.stack ? err.stack.split('\n').slice(0, 4).join(' | ') : null
+    }
   });
 };
