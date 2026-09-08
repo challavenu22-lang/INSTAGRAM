@@ -142,12 +142,12 @@ export const Register = () => {
       setRegResult(res);
       setRegisteredSuccess(true);
     } catch (err) {
-      const errMsg = err.message || 'Failed to create account.';
+      const errMsg = err.message || 'Unable to create account. Please try again.';
       const lowerMsg = errMsg.toLowerCase();
-      if (lowerMsg.includes('username') || lowerMsg.includes('user id')) {
-        setFieldErrors({ ...newErrors, username: errMsg });
+      if (lowerMsg.includes('user id') || lowerMsg.includes('username') || lowerMsg.includes('user_id')) {
+        setFieldErrors({ ...newErrors, username: errMsg, general: '' });
       } else if (lowerMsg.includes('email')) {
-        setFieldErrors({ ...newErrors, email: errMsg });
+        setFieldErrors({ ...newErrors, email: errMsg, general: '' });
       } else {
         setFieldErrors({ ...newErrors, general: errMsg });
       }

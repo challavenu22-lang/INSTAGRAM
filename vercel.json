@@ -1,6 +1,11 @@
 {
-  "buildCommand": "npm --prefix web install && npm --prefix web run build",
+  "buildCommand": "npm --prefix backend install && npm --prefix backend run build && npm --prefix web install && npm --prefix web run build",
   "outputDirectory": "web/dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "backend/prisma/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
