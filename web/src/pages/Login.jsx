@@ -17,7 +17,7 @@ export const Login = () => {
   const navigate = useNavigate();
 
   const handleIdentifierChange = (e) => {
-    setIdentifier(e.target.value);
+    setIdentifier(e.target.value.toLowerCase());
     if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: '' }));
   };
 
@@ -50,7 +50,7 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      await login(identifier.trim(), password);
+      await login(identifier.trim().toLowerCase(), password);
       navigate('/home');
     } catch (err) {
       let errMsg = err.message || 'Invalid credentials.';
