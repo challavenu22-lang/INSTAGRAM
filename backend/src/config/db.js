@@ -1,13 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function getDatabaseUrl() {
   let rawUrl = process.env.DATABASE_URL || 'file:./dev.db';
   if (!rawUrl.startsWith('file:')) return rawUrl;
 
-  const rawPath = rawUrl.replace('file:', '');
   const candidatePaths = [
+    path.resolve(__dirname, '../../prisma/template.db'),
+    path.resolve(__dirname, '../../prisma/dev.db'),
     path.resolve(process.cwd(), 'backend', 'prisma', 'template.db'),
     path.resolve(process.cwd(), 'backend', 'prisma', 'dev.db'),
     path.resolve(process.cwd(), 'prisma', 'template.db'),
@@ -15,38 +20,34 @@ function getDatabaseUrl() {
     path.resolve('/var/task/backend/prisma', 'template.db'),
     path.resolve('/var/task/backend/prisma', 'dev.db'),
     path.resolve('/var/task/prisma', 'template.db'),
-    path.resolve('/var/task/prisma', 'dev.db'),
-    path.resolve(process.cwd(), rawPath.replace(/^\./, ''))
+    path.resolve('/var/task/prisma', 'dev.db')
   ];
 
-  let existingPath = candidatePaths.find(p => fs.existsSync(p) && fs.statSync(p).size > 0);
+  let sourcePath = candidatePaths.find(p => fs.existsSync(p) && fs.statSync(p).size > 0);
 
+  const isVercel = Boolean(process.env.VERCEL || process.env.NOW_REGION || process.env.AWS_EXECUTION_ENV);
   const tmpDbPath = '/tmp/dev.db';
-  if (existingPath && existingPath !== tmpDbPath) {
-    try {
-      const needCopy = !fs.existsSync(tmpDbPath) || fs.statSync(tmpDbPath).size === 0;
-      if (needCopy) {
-        fs.copyFileSync(existingPath, tmpDbPath);
-      }
+
+  if (isVercel || sourcePath) {
+    if (sourcePath) {
       try {
-        fs.chmodSync(tmpDbPath, 0o777);
-      } catch (chmodErr) {}
-      existingPath = tmpDbPath;
-    } catch (e) {
-      console.error('Failed to copy database file to /tmp:', e.message);
+        fs.copyFileSync(sourcePath, tmpDbPath);
+        try {
+          fs.chmodSync(tmpDbPath, 0o777);
+        } catch (chmodErr) {}
+        return `file://${tmpDbPath}`;
+      } catch (e) {
+        console.error('Failed to copy database file to /tmp:', e.message);
+      }
     }
-  } else if (fs.existsSync(tmpDbPath) && fs.statSync(tmpDbPath).size > 0) {
-    try {
-      fs.chmodSync(tmpDbPath, 0o777);
-    } catch (chmodErr) {}
-    existingPath = tmpDbPath;
+
+    if (fs.existsSync(tmpDbPath)) {
+      return `file://${tmpDbPath}`;
+    }
   }
 
-  const finalPath = existingPath || path.resolve(process.cwd(), 'backend/prisma/dev.db');
-  
-  // Format as valid file:/// URL with 3 slashes for absolute paths
-  const fileUrl = finalPath.startsWith('/') ? `file://${finalPath}` : `file:${finalPath}`;
-  return fileUrl;
+  const finalPath = sourcePath || path.resolve(__dirname, '../../prisma/dev.db');
+  return finalPath.startsWith('/') ? `file://${finalPath}` : `file:${finalPath}`;
 }
 
 const dbUrl = getDatabaseUrl();
