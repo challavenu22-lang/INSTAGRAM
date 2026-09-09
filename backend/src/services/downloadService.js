@@ -154,11 +154,15 @@ export const downloadService = {
       fs.createReadStream(streamMediaUrl).pipe(res);
       if (userId) {
         try {
+          const match = targetUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
+          const shortcode = match ? match[2] : null;
+          const cachedThumb = shortcode ? getCachedThumbnailUrl(shortcode) : null;
           const { historyService } = await import('./historyService.js');
           await historyService.createHistoryItem(userId, {
             sourceUrl: targetUrl,
             sourceDomain: hostname,
             title: `Instagram Video (${targetUrl})`,
+            thumbnailUrl: cachedThumb || null,
             status: 'COMPLETED',
             fileSize: stat.size
           });
@@ -211,11 +215,15 @@ export const downloadService = {
           logger.info('Video download completed successfully', { userId });
           if (userId) {
             try {
+              const match = targetUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
+              const shortcode = match ? match[2] : null;
+              const cachedThumb = shortcode ? getCachedThumbnailUrl(shortcode) : null;
               const { historyService } = await import('./historyService.js');
               await historyService.createHistoryItem(userId, {
                 sourceUrl: targetUrl,
                 sourceDomain: hostname,
                 title: `Instagram Video (${targetUrl})`,
+                thumbnailUrl: cachedThumb || null,
                 status: 'COMPLETED',
                 fileSize: contentLength > 0 ? contentLength : null
               });

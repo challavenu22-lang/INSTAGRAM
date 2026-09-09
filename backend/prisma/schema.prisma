@@ -42,19 +42,21 @@ model Session {
 }
 
 model DownloadHistory {
-  id           String   @id @default(uuid())
-  userId       String
-  sourceUrl    String
-  sourceDomain String
-  title        String
-  thumbnailUrl String?
-  status       String   @default("COMPLETED")
-  fileSize     Int?
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  normalizedUrl String?
+  sourceUrl     String
+  sourceDomain  String
+  title         String
+  thumbnailUrl  String?
+  status        String   @default("COMPLETED")
+  fileSize      Int?
+  createdAt     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, normalizedUrl])
   @@map("download_history")
 }
 

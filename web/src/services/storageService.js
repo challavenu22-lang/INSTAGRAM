@@ -52,6 +52,7 @@ export const storageService = {
   },
 
   // --- USER SCOPED HISTORY ---
+  // --- USER SCOPED HISTORY ---
   getHistory: (userId = null) => {
     try {
       if (!userId) return []; // Guests HAVE NO HISTORY!
@@ -59,7 +60,29 @@ export const storageService = {
       const stored = localStorage.getItem(userKey);
       if (!stored) return [];
       const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+
+      // Deduplicate on read
+      const grouped = new Map();
+      for (const item of parsed) {
+        const normKey = storageService.normalizeUrl(item.sourceUrl || item.url || '');
+        if (!normKey) continue;
+        if (!grouped.has(normKey)) {
+          grouped.set(normKey, item);
+        } else {
+          const existing = grouped.get(normKey);
+          const itemHasThumb = Boolean(item.thumbnailUrl && item.thumbnailUrl.trim());
+          const existingHasThumb = Boolean(existing.thumbnailUrl && existing.thumbnailUrl.trim());
+          if (itemHasThumb && !existingHasThumb) {
+            grouped.set(normKey, item);
+          } else if (itemHasThumb === existingHasThumb && new Date(item.downloadedAt || item.createdAt) > new Date(existing.downloadedAt || existing.createdAt)) {
+            grouped.set(normKey, item);
+          }
+        }
+      }
+      const uniqueItems = Array.from(grouped.values());
+      uniqueItems.sort((a, b) => new Date(b.downloadedAt || b.createdAt) - new Date(a.downloadedAt || a.createdAt));
+      return uniqueItems;
     } catch {
       return [];
     }
@@ -71,23 +94,24 @@ export const storageService = {
       
       const userKey = `download_history_${userId}`;
       const history = storageService.getHistory(userId);
+      const rawUrl = item.sourceUrl || item.url || '';
+      const normKey = storageService.normalizeUrl(rawUrl);
       
+      const existing = history.find(h => storageService.normalizeUrl(h.sourceUrl || h.url || '') === normKey);
+
       const newItem = {
-        id: item.id || Date.now().toString(),
-        title: item.title || 'Instagram Video',
-        sourceUrl: item.sourceUrl || item.url || '',
-        thumbnailUrl: item.thumbnailUrl || item.thumbnail || '',
+        id: existing ? existing.id : (item.id || Date.now().toString()),
+        title: item.title || (existing ? existing.title : 'Instagram Video'),
+        sourceUrl: rawUrl || (existing ? existing.sourceUrl : ''),
+        thumbnailUrl: item.thumbnailUrl || (existing ? existing.thumbnailUrl : ''),
         status: item.status || 'Completed',
-        downloadedAt: item.downloadedAt || item.createdAt || new Date().toISOString(),
-        fileSize: item.fileSize || null,
+        downloadedAt: new Date().toISOString(),
+        fileSize: item.fileSize || (existing ? existing.fileSize : null),
         sourceDomain: item.sourceDomain || 'instagram.com'
       };
 
-      // Prevent duplicate history entries for the same download
-      const filtered = history.filter(h => 
-        String(h.id) !== String(newItem.id) &&
-        !(h.sourceUrl === newItem.sourceUrl && h.title === newItem.title)
-      );
+      // Filter out previous record with same normKey
+      const filtered = history.filter(h => storageService.normalizeUrl(h.sourceUrl || h.url || '') !== normKey);
 
       const updated = [newItem, ...filtered];
       localStorage.setItem(userKey, JSON.stringify(updated));
@@ -126,15 +150,15 @@ export const storageService = {
     if (!urlStr || typeof urlStr !== 'string') return '';
     const trimmed = urlStr.trim();
     if (!trimmed) return '';
-    const igMatch = trimmed.match(/\/(reel|p|tv)\/([^\/]+)/i);
-    if (igMatch && igMatch[2]) {
-      return `ig_${igMatch[2]}`;
+    const igMatch = trimmed.match(/https?:\/\/(?:www\.)?instagram\.com\/(reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+    if (igMatch && igMatch[1] && igMatch[2]) {
+      return `https://www.instagram.com/${igMatch[1].toLowerCase()}/${igMatch[2]}/`;
     }
     try {
       const u = new URL(trimmed);
-      return (u.origin + u.pathname).replace(/\/$/, '');
+      return (u.origin + u.pathname).replace(/\/+$/, '') + '/';
     } catch {
-      return trimmed.split('?')[0].replace(/\/$/, '');
+      return trimmed.split('?')[0].split('#')[0].replace(/\/+$/, '') + '/';
     }
   },
 

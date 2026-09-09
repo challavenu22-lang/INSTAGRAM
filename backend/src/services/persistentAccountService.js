@@ -2,6 +2,7 @@ import https from 'https';
 import http from 'http';
 import prisma from '../config/db.js';
 import { logger } from '../utils/logger.js';
+import { normalizeVideoUrl } from '../utils/urlNormalizer.js';
 
 // Dedicated persistent cloud storage object ID for Video Downloader accounts, sessions & history
 const CLOUD_STORE_ID = 'ff808181a067127101a08473aa465204';
@@ -319,20 +320,42 @@ export const persistentAccountService = {
   },
 
   addHistoryItem: async (historyRecord) => {
-    if (!historyRecord || !historyRecord.id || !historyRecord.userId) return;
+    if (!historyRecord || !historyRecord.userId) return;
     try {
       const store = await persistentAccountService.fetchCloudStore(true);
-      store.history[historyRecord.id] = {
-        id: historyRecord.id,
+      const rawUrl = historyRecord.sourceUrl || historyRecord.url || '';
+      const normalizedUrl = historyRecord.normalizedUrl || normalizeVideoUrl(rawUrl);
+
+      // Check if item already exists for this (userId + normalizedUrl)
+      let existingKey = null;
+      if (store.history) {
+        for (const key of Object.keys(store.history)) {
+          const item = store.history[key];
+          if (item && item.userId === historyRecord.userId) {
+            const itemNorm = item.normalizedUrl || normalizeVideoUrl(item.sourceUrl || '');
+            if (itemNorm && normalizedUrl && itemNorm === normalizedUrl) {
+              existingKey = key;
+              break;
+            }
+          }
+        }
+      }
+
+      const targetId = existingKey || historyRecord.id || Date.now().toString();
+
+      store.history[targetId] = {
+        id: targetId,
         userId: historyRecord.userId,
-        sourceUrl: historyRecord.sourceUrl || historyRecord.url || '',
+        normalizedUrl,
+        sourceUrl: rawUrl,
         sourceDomain: historyRecord.sourceDomain || 'instagram.com',
         title: historyRecord.title || 'Instagram Video',
-        thumbnailUrl: historyRecord.thumbnailUrl || null,
+        thumbnailUrl: historyRecord.thumbnailUrl || (existingKey ? store.history[existingKey].thumbnailUrl : null),
         status: historyRecord.status || 'COMPLETED',
-        fileSize: historyRecord.fileSize || null,
+        fileSize: historyRecord.fileSize || (existingKey ? store.history[existingKey].fileSize : null),
         createdAt: historyRecord.createdAt ? new Date(historyRecord.createdAt).toISOString() : new Date().toISOString()
       };
+
       await persistentAccountService.saveCloudStore(store);
     } catch (err) {
       logger.warn('[PERSISTENT HISTORY ADD ERROR]', { error: err.message });
@@ -344,16 +367,33 @@ export const persistentAccountService = {
     try {
       const store = await persistentAccountService.fetchCloudStore(false);
       const userItems = [];
+      const grouped = new Map();
+
       if (store.history) {
         for (const hid of Object.keys(store.history)) {
           const item = store.history[hid];
           if (item && item.userId === userId) {
-            userItems.push(item);
+            const normKey = item.normalizedUrl || normalizeVideoUrl(item.sourceUrl || '');
+            if (!normKey) continue;
+            if (!grouped.has(normKey)) {
+              grouped.set(normKey, item);
+            } else {
+              const existing = grouped.get(normKey);
+              const itemHasThumb = Boolean(item.thumbnailUrl && item.thumbnailUrl.trim());
+              const existingHasThumb = Boolean(existing.thumbnailUrl && existing.thumbnailUrl.trim());
+              if (itemHasThumb && !existingHasThumb) {
+                grouped.set(normKey, item);
+              } else if (itemHasThumb === existingHasThumb && new Date(item.createdAt) > new Date(existing.createdAt)) {
+                grouped.set(normKey, item);
+              }
+            }
           }
         }
       }
-      userItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      return userItems;
+
+      const uniqueList = Array.from(grouped.values());
+      uniqueList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return uniqueList;
     } catch (err) {
       logger.warn('[PERSISTENT HISTORY GET ERROR]', { error: err.message });
       return [];
