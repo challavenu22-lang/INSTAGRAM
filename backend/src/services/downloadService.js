@@ -86,35 +86,28 @@ export const downloadService = {
       if (!shortcode) {
         throw {
           status: 400,
-          message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+          message: 'Invalid Instagram URL format. Please enter a valid Instagram reel or post link.'
         };
       }
 
       title = `Instagram Video (${shortcode})`;
-      thumbnailUrl = null;
+      thumbnailUrl = getCachedThumbnailUrl(shortcode) || null;
       videoType = 'instagram';
+      streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
 
       try {
         const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
         if (resolved && (resolved.startsWith('http') || fs.existsSync(resolved))) {
-          streamUrl = resolved.startsWith('/') ? resolved : `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
+          if (resolved.startsWith('/')) {
+            streamUrl = resolved;
+          }
           const cachedThumb = getCachedThumbnailUrl(shortcode);
           if (cachedThumb) {
             thumbnailUrl = cachedThumb;
           }
-        } else {
-          throw {
-            status: 400,
-            message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
-          };
         }
       } catch (e) {
-        if (e.status && e.message) throw e;
-        logger.warn('Direct media pre-extraction error', { error: e.message });
-        throw {
-          status: 400,
-          message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
-        };
+        logger.warn('Direct media pre-extraction non-fatal warning', { error: e.message });
       }
     } else {
       const pathname = urlObj.pathname;
@@ -159,6 +152,18 @@ export const downloadService = {
       res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
       res.setHeader('Content-Length', stat.size);
       fs.createReadStream(streamMediaUrl).pipe(res);
+      if (userId) {
+        try {
+          const { historyService } = await import('./historyService.js');
+          await historyService.createHistoryItem(userId, {
+            sourceUrl: targetUrl,
+            sourceDomain: hostname,
+            title: `Instagram Video (${targetUrl})`,
+            status: 'COMPLETED',
+            fileSize: stat.size
+          });
+        } catch (e) {}
+      }
       return;
     }
 
@@ -202,8 +207,22 @@ export const downloadService = {
 
         remoteRes.pipe(res);
 
-        remoteRes.on('end', () => {
+        remoteRes.on('end', async () => {
           logger.info('Video download completed successfully', { userId });
+          if (userId) {
+            try {
+              const { historyService } = await import('./historyService.js');
+              await historyService.createHistoryItem(userId, {
+                sourceUrl: targetUrl,
+                sourceDomain: hostname,
+                title: `Instagram Video (${targetUrl})`,
+                status: 'COMPLETED',
+                fileSize: contentLength > 0 ? contentLength : null
+              });
+            } catch (e) {
+              logger.warn('Failed to auto-create backend download history', { error: e.message });
+            }
+          }
           resolve();
         });
 

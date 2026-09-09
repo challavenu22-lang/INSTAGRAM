@@ -1,6 +1,4 @@
 import crypto from 'crypto';
-import { OAuth2Client } from 'google-auth-library';
-import jwt from 'jsonwebtoken';
 import prisma from '../config/db.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { generateToken, hashToken } from '../utils/jwt.js';
@@ -18,12 +16,20 @@ export const authService = {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION.SESSION_DAYS * 24 * 60 * 60 * 1000);
 
-    await prisma.session.create({
+    const session = await prisma.session.create({
       data: {
         userId: user.id,
         tokenHash,
         expiresAt
       }
+    });
+
+    // Save session to cloud persistent store
+    await persistentAccountService.saveSession({
+      id: session.id,
+      userId: user.id,
+      tokenHash,
+      expiresAt
     });
 
     const displayName = user.name || user.username || user.email;
@@ -61,7 +67,7 @@ export const authService = {
     // Sync cloud persistent accounts before duplicate check
     await persistentAccountService.syncLocalWithCloud();
 
-    // User ID must remain strictly UNIQUE per account
+    // User ID (username) must remain strictly UNIQUE per account
     const existingUsername = await prisma.user.findFirst({
       where: { username: cleanUsername }
     });
@@ -83,7 +89,7 @@ export const authService = {
       }
     });
 
-    // Save permanently to persistent cloud store
+    // Save user permanently to persistent cloud store
     await persistentAccountService.upsertUser(user);
 
     if (requireVerification) {
@@ -113,12 +119,19 @@ export const authService = {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION.SESSION_DAYS * 24 * 60 * 60 * 1000);
 
-    await prisma.session.create({
+    const session = await prisma.session.create({
       data: {
         userId: user.id,
         tokenHash,
         expiresAt
       }
+    });
+
+    await persistentAccountService.saveSession({
+      id: session.id,
+      userId: user.id,
+      tokenHash,
+      expiresAt
     });
 
     const displayName = user.name || user.username || cleanUsername || user.email;
@@ -174,12 +187,9 @@ export const authService = {
     await persistentAccountService.syncLocalWithCloud();
 
     // 1. Try finding by unique Username (User ID) first
-    let userByUsername = null;
-    if (cleanIdentifier) {
-      userByUsername = await prisma.user.findFirst({
-        where: { username: cleanIdentifier }
-      });
-    }
+    let userByUsername = await prisma.user.findFirst({
+      where: { username: cleanIdentifier }
+    });
 
     if (userByUsername && userByUsername.passwordHash) {
       const valid = await verifyPassword(password, userByUsername.passwordHash);
@@ -221,10 +231,12 @@ export const authService = {
     if (!token) return;
     const tokenHash = hashToken(token);
     await prisma.session.deleteMany({ where: { tokenHash } });
+    await persistentAccountService.deleteSession(tokenHash);
   },
 
   logoutAll: async (userId) => {
     await prisma.session.deleteMany({ where: { userId } });
+    await persistentAccountService.deleteSessionsByUserId(userId);
   },
 
   forgotPassword: async (email) => {
@@ -276,6 +288,7 @@ export const authService = {
     await persistentAccountService.upsertUser(updatedUser);
 
     await prisma.session.deleteMany({ where: { userId: reset.userId } });
+    await persistentAccountService.deleteSessionsByUserId(reset.userId);
     await prisma.passwordReset.delete({ where: { id: reset.id } });
 
     return { message: 'Password has been reset successfully. Please log in with your new password.' };

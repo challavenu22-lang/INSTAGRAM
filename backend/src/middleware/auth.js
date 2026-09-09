@@ -27,8 +27,9 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // Verify token exists in active sessions database
     const tokenHash = hashToken(token);
+
+    // 1. Check local Prisma session
     let session = await prisma.session.findUnique({
       where: { tokenHash },
       include: {
@@ -46,35 +47,87 @@ export const authenticateUser = async (req, res, next) => {
       }
     });
 
+    // 2. If not found locally, sync with cloud store and retry
     if (!session || !session.user) {
       await persistentAccountService.syncLocalWithCloud();
-      if (decoded && decoded.userId) {
-        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-        if (user) {
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          session = await prisma.session.upsert({
-            where: { tokenHash },
-            create: { userId: user.id, tokenHash, expiresAt },
-            update: { expiresAt },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  username: true,
-                  name: true,
-                  picture: true,
-                  emailVerified: true,
-                  createdAt: true
-                }
+
+      session = await prisma.session.findUnique({
+        where: { tokenHash },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              name: true,
+              picture: true,
+              emailVerified: true,
+              createdAt: true
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Fallback: Check persistent cloud store directly
+    if (!session || !session.user) {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      const cloudSession = store.sessions?.[tokenHash];
+      const cloudUser = cloudSession ? store.users?.[cloudSession.userId] : null;
+
+      if (cloudUser && cloudSession && new Date() <= new Date(cloudSession.expiresAt)) {
+        // Restore user & session to local Prisma
+        const cleanEmail = (cloudUser.email || '').toLowerCase().trim();
+        const cleanUsername = (cloudUser.username || '').toLowerCase().trim();
+        const cleanName = cloudUser.name || cleanUsername || cleanEmail;
+
+        const dbUser = await prisma.user.upsert({
+          where: { id: cloudUser.id },
+          create: {
+            id: cloudUser.id,
+            username: cleanUsername || null,
+            email: cleanEmail,
+            passwordHash: cloudUser.passwordHash || null,
+            name: cleanName,
+            picture: cloudUser.picture || null,
+            emailVerified: cloudUser.emailVerified !== undefined ? cloudUser.emailVerified : true,
+            createdAt: cloudUser.createdAt ? new Date(cloudUser.createdAt) : new Date()
+          },
+          update: {
+            username: cleanUsername || undefined,
+            email: cleanEmail || undefined,
+            name: cleanName || undefined
+          }
+        });
+
+        const expiresAt = new Date(cloudSession.expiresAt);
+        session = await prisma.session.upsert({
+          where: { tokenHash },
+          create: {
+            id: cloudSession.id || tokenHash.substring(0, 32),
+            userId: dbUser.id,
+            tokenHash,
+            expiresAt
+          },
+          update: { expiresAt },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                name: true,
+                picture: true,
+                emailVerified: true,
+                createdAt: true
               }
             }
-          });
-        }
+          }
+        });
       }
     }
 
-    if (!session || !session.user || new Date() > session.expiresAt) {
+    if (!session || !session.user || new Date() > new Date(session.expiresAt)) {
       return res.status(401).json({
         success: false,
         error: 'Session expired. Please log in again.'
@@ -131,33 +184,26 @@ export const optionalAuth = async (req, res, next) => {
 
     if (!session || !session.user) {
       await persistentAccountService.syncLocalWithCloud();
-      if (decoded && decoded.userId) {
-        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-        if (user) {
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          session = await prisma.session.upsert({
-            where: { tokenHash },
-            create: { userId: user.id, tokenHash, expiresAt },
-            update: { expiresAt },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  username: true,
-                  name: true,
-                  picture: true,
-                  emailVerified: true,
-                  createdAt: true
-                }
-              }
+
+      session = await prisma.session.findUnique({
+        where: { tokenHash },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              name: true,
+              picture: true,
+              emailVerified: true,
+              createdAt: true
             }
-          });
+          }
         }
-      }
+      });
     }
 
-    if (session && session.user && new Date() <= session.expiresAt) {
+    if (session && session.user && new Date() <= new Date(session.expiresAt)) {
       req.user = session.user;
       req.sessionId = session.id;
       req.token = token;
@@ -170,4 +216,3 @@ export const optionalAuth = async (req, res, next) => {
     next();
   }
 };
-

@@ -266,13 +266,13 @@ export const Register = () => {
                 USER NAME
               </label>
               <div className="relative">
-                <User className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+                <User className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
                 <input
                   type="text"
                   value={name}
                   onChange={handleNameChange}
                   placeholder="Enter your user name"
-                  className={`auth-input !pl-[44px] !pr-4 ${fieldErrors.name ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                  className={`auth-input !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.name ? '!border-red-500/80 focus:!border-red-500' : ''}`}
                 />
               </div>
               {fieldErrors.name && (
@@ -288,13 +288,13 @@ export const Register = () => {
                 USER ID
               </label>
               <div className="relative">
-                <AtSign className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+                <AtSign className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
                 <input
                   type="text"
                   value={username}
                   onChange={handleUsernameChange}
                   placeholder="choose a user id (lowercase)"
-                  className={`auth-input !pl-[44px] !pr-4 ${fieldErrors.username ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                  className={`auth-input lowercase !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.username ? '!border-red-500/80 focus:!border-red-500' : ''}`}
                 />
               </div>
               {fieldErrors.username && (
@@ -310,13 +310,13 @@ export const Register = () => {
                 EMAIL ADDRESS
               </label>
               <div className="relative">
-                <Mail className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+                <Mail className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
                 <input
                   type="email"
                   value={email}
                   onChange={handleEmailChange}
                   placeholder="Enter your email"
-                  className={`auth-input !pl-[44px] !pr-4 ${fieldErrors.email ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                  className={`auth-input lowercase !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.email ? '!border-red-500/80 focus:!border-red-500' : ''}`}
                 />
               </div>
               {fieldErrors.email && (
@@ -332,7 +332,7 @@ export const Register = () => {
                 PASSWORD
               </label>
               <div className="relative">
-                <Lock className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+                <Lock className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -341,12 +341,12 @@ export const Register = () => {
                   onCopy={handleCopyPassword}
                   placeholder="Create a password"
                   autoComplete="new-password"
-                  className={`auth-input !pl-[44px] !pr-[44px] select-text ${fieldErrors.password ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                  className={`auth-input has-right-icon !pl-[36px] sm:!pl-[44px] !pr-[36px] sm:!pr-[44px] select-text ${fieldErrors.password ? '!border-red-500/80 focus:!border-red-500' : ''}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer z-10"
+                  className="absolute right-[10px] sm:right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer z-10"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -370,7 +370,7 @@ export const Register = () => {
                 CONFIRM PASSWORD
               </label>
               <div className="relative">
-                <Lock className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+                <Lock className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
@@ -379,12 +379,12 @@ export const Register = () => {
                   onCopy={handleCopyConfirm}
                   placeholder="Confirm your password"
                   autoComplete="new-password"
-                  className={`auth-input !pl-[44px] !pr-[44px] select-text ${fieldErrors.confirmPassword ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                  className={`auth-input has-right-icon !pl-[36px] sm:!pl-[44px] !pr-[36px] sm:!pr-[44px] select-text ${fieldErrors.confirmPassword ? '!border-red-500/80 focus:!border-red-500' : ''}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer"
+                  className="absolute right-[10px] sm:right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer z-10"
                   aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

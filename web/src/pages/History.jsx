@@ -29,15 +29,11 @@ export const History = () => {
       return;
     }
 
-    // Load local history for this specific user
-    const local = storageService.getHistory(user.id);
-    setHistory(local);
-
-    // Fetch backend history if authenticated with API
+    // Fetch persistent backend history
     try {
       const res = await historyService.getHistory();
       const items = res?.data?.items || res?.items;
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         const mapped = items.map(item => ({
           id: item.id,
           title: item.title,
@@ -47,11 +43,18 @@ export const History = () => {
           downloadedAt: item.createdAt
         }));
         setHistory(mapped);
-        localStorage.setItem(`download_history_${user.id}`, JSON.stringify(mapped));
+        try {
+          localStorage.setItem(`download_history_${user.id}`, JSON.stringify(mapped));
+        } catch (e) {}
+        return;
       }
     } catch (err) {
       // Offline fallback
     }
+
+    // Fallback to local storage for offline support
+    const local = storageService.getHistory(user.id);
+    setHistory(local);
   };
 
   useEffect(() => {

@@ -88,7 +88,7 @@ export const Login = () => {
               USER ID OR EMAIL
             </label>
             <div className="relative">
-              <User className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+              <User className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
               <input
                 type="text"
                 value={identifier}
@@ -113,7 +113,7 @@ export const Login = () => {
                 spellCheck="false"
                 placeholder="Enter your User ID or Email"
                 style={{ textTransform: 'lowercase' }}
-                className={`auth-input lowercase !pl-[44px] !pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                className={`auth-input lowercase !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
             </div>
             {fieldErrors.identifier && (
@@ -129,20 +129,20 @@ export const Login = () => {
               PASSWORD
             </label>
             <div className="relative">
-              <Lock className="w-5 h-5 absolute left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
+              <Lock className="w-5 h-5 absolute left-[12px] sm:left-[14px] top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none shrink-0 z-10" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={handlePasswordChange}
                 placeholder="Enter your password"
                 autoComplete="current-password"
-                className={`auth-input !pl-[44px] !pr-[44px] select-text ${fieldErrors.password ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                className={`auth-input has-right-icon !pl-[36px] sm:!pl-[44px] !pr-[36px] sm:!pr-[44px] select-text ${fieldErrors.password ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
 
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer z-10"
+                className="absolute right-[10px] sm:right-[12px] top-1/2 -translate-y-1/2 text-[#7f8da3] hover:text-slate-200 transition-colors p-1 flex items-center justify-center cursor-pointer z-10"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

@@ -3,14 +3,14 @@ import http from 'http';
 import prisma from '../config/db.js';
 import { logger } from '../utils/logger.js';
 
-// Dedicated persistent cloud storage object ID for Video Downloader accounts
+// Dedicated persistent cloud storage object ID for Video Downloader accounts, sessions & history
 const CLOUD_STORE_ID = 'ff808181a067127101a08473aa465204';
 const CLOUD_STORE_URL = `https://api.restful-api.dev/objects/${CLOUD_STORE_ID}`;
 
-// In-memory cache for ultra-fast response within the same lambda lifetime
-let accountsCache = {};
+// Short in-memory cache for fast response within the same lambda lifetime
+let cloudStoreCache = { users: {}, sessions: {}, history: {} };
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 5000; // 5 seconds cache
+const CACHE_TTL_MS = 1500; // 1.5 seconds cache to minimize external network overhead
 
 function httpRequest(urlStr, options = {}, postData = null) {
   return new Promise((resolve) => {
@@ -19,7 +19,7 @@ function httpRequest(urlStr, options = {}, postData = null) {
     const req = client.request(urlStr, {
       method: options.method || 'GET',
       headers: options.headers || {},
-      timeout: 5000
+      timeout: 8000
     }, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
@@ -50,30 +50,49 @@ function httpRequest(urlStr, options = {}, postData = null) {
   });
 }
 
+function normalizeStoreData(rawData) {
+  if (!rawData || typeof rawData !== 'object') {
+    return { users: {}, sessions: {}, history: {} };
+  }
+
+  let users = rawData.users && typeof rawData.users === 'object' ? rawData.users : {};
+  let sessions = rawData.sessions && typeof rawData.sessions === 'object' ? rawData.sessions : {};
+  let history = rawData.history && typeof rawData.history === 'object' ? rawData.history : {};
+
+  for (const key of Object.keys(rawData)) {
+    if (key !== 'users' && key !== 'sessions' && key !== 'history') {
+      const val = rawData[key];
+      if (val && typeof val === 'object' && val.id) {
+        users[val.id] = val;
+      }
+    }
+  }
+
+  return { users, sessions, history };
+}
+
 export const persistentAccountService = {
-  // Fetch all persistent accounts from cloud storage
-  fetchAccountsFromCloud: async () => {
-    if (Date.now() - lastFetchTime < CACHE_TTL_MS && Object.keys(accountsCache).length > 0) {
-      return accountsCache;
+  fetchCloudStore: async (forceRefresh = false) => {
+    if (!forceRefresh && Date.now() - lastFetchTime < CACHE_TTL_MS && Object.keys(cloudStoreCache.users).length > 0) {
+      return cloudStoreCache;
     }
 
     const res = await httpRequest(CLOUD_STORE_URL);
     if (res.status === 200 && res.data && res.data.data) {
-      accountsCache = res.data.data;
+      cloudStoreCache = normalizeStoreData(res.data.data);
       lastFetchTime = Date.now();
-      return accountsCache;
+      return cloudStoreCache;
     }
-    return accountsCache;
+    return cloudStoreCache;
   },
 
-  // Save current accounts object to cloud storage
-  saveAccountsToCloud: async (accountsObj) => {
-    accountsCache = accountsObj;
+  saveCloudStore: async (storeObj) => {
+    cloudStoreCache = normalizeStoreData(storeObj);
     lastFetchTime = Date.now();
 
     const payload = {
       name: 'Instagram Downloader Accounts Store',
-      data: accountsObj
+      data: cloudStoreCache
     };
 
     await httpRequest(CLOUD_STORE_URL, {
@@ -84,32 +103,35 @@ export const persistentAccountService = {
     }, payload);
   },
 
-  // Synchronize local Prisma database with cloud persistent accounts
   syncLocalWithCloud: async () => {
     try {
-      const cloudAccounts = await persistentAccountService.fetchAccountsFromCloud();
-      if (!cloudAccounts || Object.keys(cloudAccounts).length === 0) return;
+      const store = await persistentAccountService.fetchCloudStore(true);
+      
+      // 1. Sync Users
+      if (store.users) {
+        for (const userId of Object.keys(store.users)) {
+          const u = store.users[userId];
+          if (!u || !u.id || (!u.email && !u.username)) continue;
 
-      for (const accountId of Object.keys(cloudAccounts)) {
-        const u = cloudAccounts[accountId];
-        if (!u || !u.id || (!u.email && !u.username)) continue;
+          const cleanEmail = (u.email || '').toLowerCase().trim();
+          const cleanUsername = (u.username || '').toLowerCase().trim();
+          const cleanName = u.name || cleanUsername || cleanEmail;
 
-        const cleanEmail = (u.email || '').toLowerCase().trim();
-        const cleanUsername = (u.username || '').toLowerCase().trim();
-        const cleanName = u.name || cleanUsername || cleanEmail;
-
-        const existing = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { id: u.id },
-              ...(cleanUsername ? [{ username: cleanUsername }] : [])
-            ]
+          // Remove any stale local user record holding this username under a different ID
+          if (cleanUsername) {
+            await prisma.user.deleteMany({
+              where: {
+                username: cleanUsername,
+                id: { not: u.id }
+              }
+            });
           }
-        });
 
-        if (!existing) {
-          await prisma.user.create({
-            data: {
+          const passwordHashToSet = u.passwordHash || undefined;
+
+          await prisma.user.upsert({
+            where: { id: u.id },
+            create: {
               id: u.id,
               username: cleanUsername || null,
               email: cleanEmail,
@@ -118,8 +140,69 @@ export const persistentAccountService = {
               picture: u.picture || null,
               emailVerified: u.emailVerified !== undefined ? u.emailVerified : true,
               createdAt: u.createdAt ? new Date(u.createdAt) : new Date()
+            },
+            update: {
+              username: cleanUsername || null,
+              email: cleanEmail,
+              name: cleanName,
+              ...(passwordHashToSet ? { passwordHash: passwordHashToSet } : {}),
+              picture: u.picture !== undefined ? u.picture : undefined
             }
           });
+        }
+      }
+
+      // 2. Sync Active Sessions
+      if (store.sessions) {
+        for (const tokenHash of Object.keys(store.sessions)) {
+          const s = store.sessions[tokenHash];
+          if (!s || !s.userId || !s.tokenHash) continue;
+          
+          const expiresAt = s.expiresAt ? new Date(s.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          if (new Date() > expiresAt) continue;
+
+          const localUser = await prisma.user.findUnique({ where: { id: s.userId } });
+          if (localUser) {
+            const existingSession = await prisma.session.findUnique({ where: { tokenHash: s.tokenHash } });
+            if (!existingSession) {
+              await prisma.session.create({
+                data: {
+                  id: s.id || s.tokenHash.substring(0, 32),
+                  userId: s.userId,
+                  tokenHash: s.tokenHash,
+                  expiresAt
+                }
+              });
+            }
+          }
+        }
+      }
+
+      // 3. Sync Download History
+      if (store.history) {
+        for (const historyId of Object.keys(store.history)) {
+          const h = store.history[historyId];
+          if (!h || !h.id || !h.userId) continue;
+
+          const localUser = await prisma.user.findUnique({ where: { id: h.userId } });
+          if (localUser) {
+            const existingHist = await prisma.downloadHistory.findUnique({ where: { id: h.id } });
+            if (!existingHist) {
+              await prisma.downloadHistory.create({
+                data: {
+                  id: h.id,
+                  userId: h.userId,
+                  sourceUrl: h.sourceUrl || h.url || '',
+                  sourceDomain: h.sourceDomain || 'instagram.com',
+                  title: h.title || 'Instagram Video',
+                  thumbnailUrl: h.thumbnailUrl || null,
+                  status: h.status || 'COMPLETED',
+                  fileSize: h.fileSize ? parseInt(h.fileSize, 10) : null,
+                  createdAt: h.createdAt ? new Date(h.createdAt) : new Date()
+                }
+              });
+            }
+          }
         }
       }
     } catch (err) {
@@ -127,42 +210,187 @@ export const persistentAccountService = {
     }
   },
 
-  // Save or update a user account in persistent store
   upsertUser: async (userRecord) => {
     if (!userRecord || !userRecord.id) return;
     try {
-      const cloudAccounts = await persistentAccountService.fetchAccountsFromCloud();
+      const store = await persistentAccountService.fetchCloudStore(true);
       const cleanEmail = (userRecord.email || '').toLowerCase().trim();
       const cleanUsername = (userRecord.username || '').toLowerCase().trim();
 
-      cloudAccounts[userRecord.id] = {
+      const existingCloudUser = store.users[userRecord.id] || {};
+      const passwordHash = userRecord.passwordHash || existingCloudUser.passwordHash || null;
+
+      store.users[userRecord.id] = {
         id: userRecord.id,
-        username: cleanUsername,
-        email: cleanEmail,
-        passwordHash: userRecord.passwordHash,
-        name: userRecord.name || cleanUsername || cleanEmail,
-        picture: userRecord.picture || null,
-        emailVerified: userRecord.emailVerified !== undefined ? userRecord.emailVerified : true,
-        createdAt: userRecord.createdAt || new Date().toISOString()
+        username: cleanUsername || existingCloudUser.username || '',
+        email: cleanEmail || existingCloudUser.email || '',
+        passwordHash: passwordHash,
+        name: userRecord.name || existingCloudUser.name || cleanUsername || cleanEmail,
+        picture: userRecord.picture !== undefined ? userRecord.picture : (existingCloudUser.picture || null),
+        emailVerified: userRecord.emailVerified !== undefined ? userRecord.emailVerified : (existingCloudUser.emailVerified !== undefined ? existingCloudUser.emailVerified : true),
+        createdAt: userRecord.createdAt ? new Date(userRecord.createdAt).toISOString() : (existingCloudUser.createdAt || new Date().toISOString())
       };
 
-      await persistentAccountService.saveAccountsToCloud(cloudAccounts);
+      await persistentAccountService.saveCloudStore(store);
     } catch (err) {
       logger.warn('[PERSISTENT ACCOUNT UPSERT ERROR]', { error: err.message });
     }
   },
 
-  // Remove a user account permanently from persistent store (for Delete Account action)
   deleteUser: async (userId) => {
     if (!userId) return;
     try {
-      const cloudAccounts = await persistentAccountService.fetchAccountsFromCloud();
-      if (cloudAccounts[userId]) {
-        delete cloudAccounts[userId];
-        await persistentAccountService.saveAccountsToCloud(cloudAccounts);
+      const store = await persistentAccountService.fetchCloudStore(true);
+      if (store.users[userId]) {
+        delete store.users[userId];
       }
+
+      if (store.sessions) {
+        for (const th of Object.keys(store.sessions)) {
+          if (store.sessions[th]?.userId === userId) {
+            delete store.sessions[th];
+          }
+        }
+      }
+
+      if (store.history) {
+        for (const hid of Object.keys(store.history)) {
+          if (store.history[hid]?.userId === userId) {
+            delete store.history[hid];
+          }
+        }
+      }
+
+      await persistentAccountService.saveCloudStore(store);
     } catch (err) {
       logger.warn('[PERSISTENT ACCOUNT DELETE ERROR]', { error: err.message });
+    }
+  },
+
+  saveSession: async (sessionRecord) => {
+    if (!sessionRecord || !sessionRecord.tokenHash || !sessionRecord.userId) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      store.sessions[sessionRecord.tokenHash] = {
+        id: sessionRecord.id,
+        userId: sessionRecord.userId,
+        tokenHash: sessionRecord.tokenHash,
+        expiresAt: sessionRecord.expiresAt ? new Date(sessionRecord.expiresAt).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      await persistentAccountService.saveCloudStore(store);
+    } catch (err) {
+      logger.warn('[PERSISTENT SESSION SAVE ERROR]', { error: err.message });
+    }
+  },
+
+  deleteSession: async (tokenHash) => {
+    if (!tokenHash) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      if (store.sessions && store.sessions[tokenHash]) {
+        delete store.sessions[tokenHash];
+        await persistentAccountService.saveCloudStore(store);
+      }
+    } catch (err) {
+      logger.warn('[PERSISTENT SESSION DELETE ERROR]', { error: err.message });
+    }
+  },
+
+  deleteSessionsByUserId: async (userId) => {
+    if (!userId) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      if (store.sessions) {
+        let changed = false;
+        for (const th of Object.keys(store.sessions)) {
+          if (store.sessions[th]?.userId === userId) {
+            delete store.sessions[th];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await persistentAccountService.saveCloudStore(store);
+        }
+      }
+    } catch (err) {
+      logger.warn('[PERSISTENT USER SESSIONS DELETE ERROR]', { error: err.message });
+    }
+  },
+
+  addHistoryItem: async (historyRecord) => {
+    if (!historyRecord || !historyRecord.id || !historyRecord.userId) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      store.history[historyRecord.id] = {
+        id: historyRecord.id,
+        userId: historyRecord.userId,
+        sourceUrl: historyRecord.sourceUrl || historyRecord.url || '',
+        sourceDomain: historyRecord.sourceDomain || 'instagram.com',
+        title: historyRecord.title || 'Instagram Video',
+        thumbnailUrl: historyRecord.thumbnailUrl || null,
+        status: historyRecord.status || 'COMPLETED',
+        fileSize: historyRecord.fileSize || null,
+        createdAt: historyRecord.createdAt ? new Date(historyRecord.createdAt).toISOString() : new Date().toISOString()
+      };
+      await persistentAccountService.saveCloudStore(store);
+    } catch (err) {
+      logger.warn('[PERSISTENT HISTORY ADD ERROR]', { error: err.message });
+    }
+  },
+
+  getHistoryByUserId: async (userId) => {
+    if (!userId) return [];
+    try {
+      const store = await persistentAccountService.fetchCloudStore(false);
+      const userItems = [];
+      if (store.history) {
+        for (const hid of Object.keys(store.history)) {
+          const item = store.history[hid];
+          if (item && item.userId === userId) {
+            userItems.push(item);
+          }
+        }
+      }
+      userItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return userItems;
+    } catch (err) {
+      logger.warn('[PERSISTENT HISTORY GET ERROR]', { error: err.message });
+      return [];
+    }
+  },
+
+  deleteHistoryItem: async (historyId, userId) => {
+    if (!historyId || !userId) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      if (store.history && store.history[historyId] && store.history[historyId].userId === userId) {
+        delete store.history[historyId];
+        await persistentAccountService.saveCloudStore(store);
+      }
+    } catch (err) {
+      logger.warn('[PERSISTENT HISTORY DELETE ERROR]', { error: err.message });
+    }
+  },
+
+  clearUserHistory: async (userId) => {
+    if (!userId) return;
+    try {
+      const store = await persistentAccountService.fetchCloudStore(true);
+      if (store.history) {
+        let changed = false;
+        for (const hid of Object.keys(store.history)) {
+          if (store.history[hid]?.userId === userId) {
+            delete store.history[hid];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await persistentAccountService.saveCloudStore(store);
+        }
+      }
+    } catch (err) {
+      logger.warn('[PERSISTENT HISTORY CLEAR ERROR]', { error: err.message });
     }
   }
 };
