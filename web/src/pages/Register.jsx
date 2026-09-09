@@ -178,10 +178,18 @@ export const Register = () => {
         errMsg = 'An account with this User ID already exists.';
       }
       const lowerMsg = errMsg.toLowerCase();
-      if (lowerMsg.includes('user id') || lowerMsg.includes('username') || lowerMsg.includes('user_id')) {
+      if (lowerMsg.includes('email') || lowerMsg.includes('mail')) {
+        setFieldErrors(prev => ({ ...prev, email: errMsg, general: '' }));
+      } else if (lowerMsg.includes('user id') || lowerMsg.includes('username') || lowerMsg.includes('user_id')) {
         setFieldErrors(prev => ({ ...prev, username: errMsg, general: '' }));
+      } else if (lowerMsg.includes('name')) {
+        setFieldErrors(prev => ({ ...prev, name: errMsg, general: '' }));
+      } else if (lowerMsg.includes('confirm')) {
+        setFieldErrors(prev => ({ ...prev, confirmPassword: errMsg, general: '' }));
+      } else if (lowerMsg.includes('password')) {
+        setFieldErrors(prev => ({ ...prev, password: errMsg, general: '' }));
       } else {
-        setFieldErrors(prev => ({ ...prev, general: errMsg }));
+        setFieldErrors(prev => ({ ...prev, email: errMsg, general: '' }));
       }
     } finally {
       setLoading(false);
@@ -199,13 +207,6 @@ export const Register = () => {
           <h2 className="text-xl sm:text-2xl font-bold theme-text-primary tracking-tight">Create Account</h2>
           <p className="auth-subtitle text-xs sm:text-sm theme-text-secondary mt-0.5 sm:mt-1">Create your Video Downloader account</p>
         </div>
-
-        {fieldErrors.general && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 shrink-0" />
-            <span>{fieldErrors.general}</span>
-          </div>
-        )}
 
         {registeredSuccess ? (
           <div className="space-y-5">
