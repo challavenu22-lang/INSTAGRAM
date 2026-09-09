@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Home, 
   Settings, 
   History, 
   LogOut, 
@@ -14,6 +13,22 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { Modal } from './Modal';
+
+// Solid filled white house icon with door cutout
+const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+  >
+    <path 
+      fillRule="evenodd" 
+      clipRule="evenodd" 
+      d="M12 3L2.5 10.5A1 1 0 0 0 3.2 12H4v8a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 20v-8h.8a1 1 0 0 0 .7-1.7L12 3zM10 21.5v-6.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v6.5h-4z" 
+    />
+  </svg>
+);
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -59,13 +74,13 @@ export const Navbar = () => {
     <header className="sticky top-0 z-40 w-full glass-panel">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
         
-        {/* Top-Left: Home Navigation Link (Standard White House Icon + Text) */}
+        {/* Top-Left: Home Navigation Link (Cleaner Modern White House Icon + Text) */}
         <Link 
           to="/home" 
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
-          <Home className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" />
+          <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" />
           <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">Home</span>
         </Link>
 
@@ -188,7 +203,7 @@ export const Navbar = () => {
                         }`}
                         role="menuitem"
                       >
-                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <HomeIcon className="w-3.5 h-3.5 shrink-0" />
                         <span className="whitespace-nowrap">Home</span>
                       </Link>
 
@@ -240,7 +255,7 @@ export const Navbar = () => {
                         }`}
                         role="menuitem"
                       >
-                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <HomeIcon className="w-3.5 h-3.5 shrink-0" />
                         <span className="whitespace-nowrap">Home</span>
                       </Link>
 
