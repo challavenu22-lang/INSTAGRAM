@@ -9,34 +9,64 @@ import { persistentAccountService } from './persistentAccountService.js';
 import { TOKEN_EXPIRATION } from '../config/constants.js';
 
 export const authService = {
+  createSessionAndResponse: async (user) => {
+    if (process.env.REQUIRE_EMAIL_VERIFICATION === 'true' && !user.emailVerified) {
+      throw { status: 400, message: 'Please verify your email address before logging in. Check your email for the verification link.' };
+    }
+
+    const token = generateToken({ userId: user.id, email: user.email });
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION.SESSION_DAYS * 24 * 60 * 60 * 1000);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt
+      }
+    });
+
+    const displayName = user.name || user.username || user.email;
+    const displayUsername = user.username || '';
+
+    return {
+      user: {
+        id: user.id,
+        name: displayName,
+        fullName: displayName,
+        userName: displayName,
+        username: displayUsername,
+        email: user.email,
+        picture: user.picture,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt
+      },
+      token
+    };
+  },
+
   register: async (name, usernameInput, emailInput, password) => {
     const cleanEmail = emailInput ? emailInput.toLowerCase().trim() : '';
     const cleanUsername = usernameInput ? usernameInput.toLowerCase().trim() : '';
     const cleanName = name ? name.trim() : cleanUsername || cleanEmail;
 
-    if (!cleanUsername && !cleanEmail) {
-      throw { status: 400, message: 'Please provide a User ID or Email address.' };
+    if (!cleanUsername) {
+      throw { status: 400, message: 'Please enter a unique User ID.' };
+    }
+
+    if (!cleanEmail) {
+      throw { status: 400, message: 'Please enter an Email address.' };
     }
 
     // Sync cloud persistent accounts before duplicate check
     await persistentAccountService.syncLocalWithCloud();
 
-    if (cleanUsername) {
-      const existingUsername = await prisma.user.findFirst({
-        where: { username: cleanUsername }
-      });
-      if (existingUsername) {
-        throw { status: 409, message: 'An account with this User ID already exists.' };
-      }
-    }
-
-    if (cleanEmail) {
-      const existingEmail = await prisma.user.findFirst({
-        where: { email: cleanEmail }
-      });
-      if (existingEmail) {
-        throw { status: 409, message: 'An account with this Email address already exists.' };
-      }
+    // User ID must remain strictly UNIQUE per account
+    const existingUsername = await prisma.user.findFirst({
+      where: { username: cleanUsername }
+    });
+    if (existingUsername) {
+      throw { status: 409, message: 'An account with this User ID already exists.' };
     }
 
     const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
@@ -46,7 +76,7 @@ export const authService = {
     const user = await prisma.user.create({
       data: {
         email: cleanEmail,
-        username: cleanUsername || null,
+        username: cleanUsername,
         passwordHash,
         name: cleanName,
         emailVerified,
@@ -143,78 +173,48 @@ export const authService = {
     // Ensure all registered cloud accounts exist in current Prisma instance
     await persistentAccountService.syncLocalWithCloud();
 
-    const candidateUsers = await prisma.user.findMany({
-      where: {
-        OR: [
-          { username: cleanIdentifier },
-          { email: cleanIdentifier }
-        ]
-      }
-    });
-
-    if (!candidateUsers || candidateUsers.length === 0) {
-      throw { status: 401, message: 'Invalid email/User ID or password.' };
+    // 1. Try finding by unique Username (User ID) first
+    let userByUsername = null;
+    if (cleanIdentifier) {
+      userByUsername = await prisma.user.findFirst({
+        where: { username: cleanIdentifier }
+      });
     }
 
-    let matchingUsers = [];
-    for (const candidate of candidateUsers) {
-      if (candidate.passwordHash) {
-        const valid = await verifyPassword(password, candidate.passwordHash);
-        if (valid) {
-          matchingUsers.push(candidate);
+    if (userByUsername && userByUsername.passwordHash) {
+      const valid = await verifyPassword(password, userByUsername.passwordHash);
+      if (valid) {
+        return authService.createSessionAndResponse(userByUsername);
+      }
+    }
+
+    // 2. Try finding by Email
+    const usersByEmail = await prisma.user.findMany({
+      where: { email: cleanIdentifier }
+    });
+
+    if (usersByEmail && usersByEmail.length > 0) {
+      let matchingUsers = [];
+      for (const candidate of usersByEmail) {
+        if (candidate.passwordHash) {
+          const valid = await verifyPassword(password, candidate.passwordHash);
+          if (valid) {
+            matchingUsers.push(candidate);
+          }
         }
       }
-    }
 
-    if (matchingUsers.length === 0) {
-      throw { status: 401, message: 'Invalid email/User ID or password.' };
-    }
-
-    if (matchingUsers.length > 1) {
-      throw {
-        status: 400,
-        message: 'Multiple accounts share this email address. Please sign in using your unique User ID.'
-      };
-    }
-
-    const matchingUser = matchingUsers[0];
-
-    if (process.env.REQUIRE_EMAIL_VERIFICATION === 'true' && !matchingUser.emailVerified) {
-      throw { status: 400, message: 'Please verify your email address before logging in. Check your email for the verification link.' };
-    }
-
-    const user = matchingUser;
-
-    // Create session token
-    const token = generateToken({ userId: user.id, email: user.email });
-    const tokenHash = hashToken(token);
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION.SESSION_DAYS * 24 * 60 * 60 * 1000);
-
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt
+      if (matchingUsers.length === 1) {
+        return authService.createSessionAndResponse(matchingUsers[0]);
+      } else if (matchingUsers.length > 1) {
+        throw {
+          status: 400,
+          message: 'Multiple accounts share this email address. Please sign in using your unique User ID.'
+        };
       }
-    });
+    }
 
-    const displayName = user.name || user.username || user.email;
-    const displayUsername = user.username || '';
-
-    return {
-      user: {
-        id: user.id,
-        name: displayName,
-        fullName: displayName,
-        userName: displayName,
-        username: displayUsername,
-        email: user.email,
-        picture: user.picture,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt
-      },
-      token
-    };
+    throw { status: 401, message: 'Invalid email/User ID or password.' };
   },
 
   logout: async (token) => {

@@ -102,8 +102,7 @@ export const persistentAccountService = {
           where: {
             OR: [
               { id: u.id },
-              { username: cleanUsername },
-              { email: cleanEmail }
+              ...(cleanUsername ? [{ username: cleanUsername }] : [])
             ]
           }
         });
