@@ -5,19 +5,38 @@ import prisma from '../config/db.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { generateToken, hashToken } from '../utils/jwt.js';
 import { emailService } from './emailService.js';
+import { persistentAccountService } from './persistentAccountService.js';
 import { TOKEN_EXPIRATION } from '../config/constants.js';
 
 export const authService = {
   register: async (name, usernameInput, emailInput, password) => {
     const cleanEmail = emailInput ? emailInput.toLowerCase().trim() : '';
     const cleanUsername = usernameInput ? usernameInput.toLowerCase().trim() : '';
-    const cleanName = name ? name.trim() : cleanUsername;
+    const cleanName = name ? name.trim() : cleanUsername || cleanEmail;
 
-    const existingUsername = await prisma.user.findFirst({
-      where: { username: cleanUsername }
-    });
-    if (existingUsername) {
-      throw { status: 409, message: 'An account with this User ID already exists.' };
+    if (!cleanUsername && !cleanEmail) {
+      throw { status: 400, message: 'Please provide a User ID or Email address.' };
+    }
+
+    // Sync cloud persistent accounts before duplicate check
+    await persistentAccountService.syncLocalWithCloud();
+
+    if (cleanUsername) {
+      const existingUsername = await prisma.user.findFirst({
+        where: { username: cleanUsername }
+      });
+      if (existingUsername) {
+        throw { status: 409, message: 'An account with this User ID already exists.' };
+      }
+    }
+
+    if (cleanEmail) {
+      const existingEmail = await prisma.user.findFirst({
+        where: { email: cleanEmail }
+      });
+      if (existingEmail) {
+        throw { status: 409, message: 'An account with this Email address already exists.' };
+      }
     }
 
     const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
@@ -27,12 +46,15 @@ export const authService = {
     const user = await prisma.user.create({
       data: {
         email: cleanEmail,
-        username: cleanUsername,
+        username: cleanUsername || null,
         passwordHash,
         name: cleanName,
         emailVerified,
       }
     });
+
+    // Save permanently to persistent cloud store
+    await persistentAccountService.upsertUser(user);
 
     if (requireVerification) {
       const rawToken = crypto.randomBytes(32).toString('hex');
@@ -69,8 +91,8 @@ export const authService = {
       }
     });
 
-    const displayName = user.name || user.username || '';
-    const displayUsername = user.username || '';
+    const displayName = user.name || user.username || cleanUsername || user.email;
+    const displayUsername = user.username || cleanUsername;
 
     return {
       message: 'Account created successfully!',
@@ -100,11 +122,12 @@ export const authService = {
       throw { status: 400, message: 'Invalid or expired email verification token.' };
     }
 
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: verification.userId },
       data: { emailVerified: true }
     });
 
+    await persistentAccountService.upsertUser(user);
     await prisma.emailVerification.delete({ where: { id: verification.id } });
 
     return { message: 'Email verified successfully! You can now log in.' };
@@ -112,6 +135,13 @@ export const authService = {
 
   login: async (identifierInput, password) => {
     const cleanIdentifier = identifierInput ? identifierInput.toLowerCase().trim() : '';
+
+    if (!cleanIdentifier || !password) {
+      throw { status: 400, message: 'Please enter your User ID/Email and password.' };
+    }
+
+    // Ensure all registered cloud accounts exist in current Prisma instance
+    await persistentAccountService.syncLocalWithCloud();
 
     const candidateUsers = await prisma.user.findMany({
       where: {
@@ -168,7 +198,7 @@ export const authService = {
       }
     });
 
-    const displayName = user.name || user.username || '';
+    const displayName = user.name || user.username || user.email;
     const displayUsername = user.username || '';
 
     return {
@@ -199,9 +229,9 @@ export const authService = {
 
   forgotPassword: async (email) => {
     const cleanEmail = email ? email.toLowerCase().trim() : '';
+    await persistentAccountService.syncLocalWithCloud();
     const users = await prisma.user.findMany({ where: { email: cleanEmail } });
     if (!users || users.length === 0) {
-      // Return generic message for security
       return { message: 'If an account exists with that email, a reset link has been sent.' };
     }
 
@@ -210,7 +240,6 @@ export const authService = {
       const tokenHash = hashToken(rawToken);
       const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION.PASSWORD_RESET_HOURS * 60 * 60 * 1000);
 
-      // Delete existing reset tokens for user
       await prisma.passwordReset.deleteMany({ where: { userId: user.id } });
 
       await prisma.passwordReset.create({
@@ -239,12 +268,13 @@ export const authService = {
 
     const passwordHash = await hashPassword(newPassword);
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: reset.userId },
       data: { passwordHash }
     });
 
-    // Invalidate all active user sessions for security
+    await persistentAccountService.upsertUser(updatedUser);
+
     await prisma.session.deleteMany({ where: { userId: reset.userId } });
     await prisma.passwordReset.delete({ where: { id: reset.id } });
 

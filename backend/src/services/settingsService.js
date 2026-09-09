@@ -1,5 +1,6 @@
 import prisma from '../config/db.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
+import { persistentAccountService } from './persistentAccountService.js';
 
 export const settingsService = {
   updateProfile: async (userId, data) => {
@@ -46,6 +47,8 @@ export const settingsService = {
       where: { id: targetUserId },
       data: updateData
     });
+
+    await persistentAccountService.upsertUser(updatedUser);
 
     const displayName = updatedUser.name || updatedUser.username || '';
     const displayUsername = updatedUser.username || '';
@@ -123,10 +126,12 @@ export const settingsService = {
 
     const newHash = await hashPassword(newPassword);
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { passwordHash: newHash }
     });
+
+    await persistentAccountService.upsertUser(updatedUser);
 
     return { message: 'Password updated successfully!' };
   },
@@ -151,6 +156,8 @@ export const settingsService = {
     await prisma.user.delete({
       where: { id: userId }
     });
+
+    await persistentAccountService.deleteUser(userId);
 
     return { message: 'Account and associated data deleted permanently.' };
   }
