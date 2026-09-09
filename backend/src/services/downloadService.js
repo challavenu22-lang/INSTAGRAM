@@ -315,7 +315,8 @@ export const downloadService = {
         logger.warn('instagram-url-direct extraction fallback', { error: err.message });
       }
 
-      const httpGetBot = (urlStr) => {
+      const httpGetBot = (urlStr, depth = 0) => {
+        if (depth > 5) return Promise.resolve('');
         return new Promise((resolve) => {
           https.get(urlStr, {
             headers: {
@@ -324,6 +325,10 @@ export const downloadService = {
             },
             timeout: 10000
           }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              const redirectUrl = new URL(res.headers.location, urlStr).href;
+              return httpGetBot(redirectUrl, depth + 1).then(resolve);
+            }
             let body = '';
             res.on('data', chunk => body += chunk);
             res.on('end', () => resolve(body));
@@ -338,7 +343,7 @@ export const downloadService = {
                          cleanBody.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
       let extractedThumbnail = ogImgMatch ? ogImgMatch[1] : null;
       if (!extractedThumbnail) {
-        const imgUrls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:jpg|jpeg|webp|png)[^\s"'<>]*/gi) || [];
+        const imgUrls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:jpg|jpeg|webp|png)[^\s"'<>]+/gi) || [];
         if (imgUrls.length > 0) {
           extractedThumbnail = imgUrls[0];
         }
@@ -347,7 +352,7 @@ export const downloadService = {
         setCachedThumbnailUrl(shortcode, downloadService.cleanMediaUrl(extractedThumbnail));
       }
 
-      const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:mp4|m4a)[^\s"'<>]*/gi) || [];
+      const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*?(?:\.mp4|\.m4a|\/o1\/v\/|\/v\/t[0-9]*\/|efg=|video_dashinit|audio_dashinit)[^\s"'<>]+/gi) || [];
 
       let audioUrl = null;
       let progressiveUrl = null;
