@@ -92,28 +92,21 @@ export const Login = () => {
               <input
                 type="text"
                 value={identifier}
-                onChange={(e) => {
-                  const val = e.target.value.toLowerCase();
-                  setIdentifier(val);
-                  if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: '' }));
-                }}
+                onChange={handleIdentifierChange}
                 onInput={(e) => {
-                  const val = e.target.value.toLowerCase();
-                  setIdentifier(val);
+                  setIdentifier(e.target.value.toLowerCase());
                 }}
-                onKeyUp={(e) => {
-                  const val = e.target.value.toLowerCase();
-                  if (identifier !== val) setIdentifier(val);
-                }}
-                onBlur={() => {
-                  setIdentifier(prev => prev.toLowerCase());
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                  setIdentifier(pastedText.toLowerCase());
+                  if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: '' }));
                 }}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck="false"
-                placeholder="Enter your User ID or Email"
-                style={{ textTransform: 'lowercase' }}
-                className={`auth-input lowercase !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
+                placeholder="Enter your user id or email"
+                className={`auth-input !pl-[36px] sm:!pl-[44px] !pr-3 sm:!pr-4 ${fieldErrors.identifier ? '!border-red-500/80 focus:!border-red-500' : ''}`}
               />
             </div>
             {fieldErrors.identifier && (
