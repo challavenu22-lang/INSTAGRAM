@@ -45,6 +45,9 @@ prisma/*.db
 *.sw?
 .DS_Store
 
+# Scratch test directory
+scratch/
+
 # Expo / React Native
 .expo/
 web-build/

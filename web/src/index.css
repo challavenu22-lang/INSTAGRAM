@@ -351,5 +351,372 @@ video::-internal-media-controls-overlay-play-button {
   margin: 0 !important;
 }
 
+/* ==========================================
+   WHITE THEME SPECIFIC OVERRIDES & STYLING
+   ========================================== */
+
+/* 1. Top-left Home area */
+html.light-theme header a[aria-label="Home"],
+html.light-theme header a[aria-label="Home"] svg,
+html.light-theme header a[aria-label="Home"] span {
+  color: #000000 !important;
+  fill: #000000 !important;
+}
+
+/* 2. Top-right Account button */
+html.light-theme .account-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme .account-btn span {
+  color: #000000 !important;
+}
+
+/* 3. URL input box */
+html.light-theme .input-field {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+/* 4. Paste button */
+html.light-theme .btn-paste {
+  background-color: #fef3c7 !important;
+  border: 1px solid #000000 !important;
+  color: #78350f !important;
+}
+
+/* 5. Search button */
+html.light-theme .btn-primary {
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+}
+
+/* 6. Other elements contrast & visibility improvements in White Theme */
+html.light-theme header.glass-panel {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 1px solid #000000 !important;
+}
+
+html.light-theme .glass-panel {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid #000000 !important;
+}
+
+html.light-theme .btn-secondary {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme [role="menu"] {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+html.light-theme [role="menu"] a,
+html.light-theme [role="menu"] button,
+html.light-theme [role="menu"] span,
+html.light-theme [role="menu"] div {
+  color: #000000 !important;
+}
+
+html.light-theme [role="menu"] svg {
+  color: #000000 !important;
+}
+
+/* Guest Account Section Overrides in White Theme */
+html.light-theme [role="menu"] .guest-account-text,
+html.light-theme [role="menu"] .guest-account-header span {
+  color: #000000 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+html.light-theme [role="menu"] .guest-account-icon,
+html.light-theme [role="menu"] .guest-account-header svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+  opacity: 1 !important;
+}
+
+html.light-theme [role="menu"] .guest-login-btn,
+html.light-theme [role="menu"] .guest-login-btn span,
+html.light-theme [role="menu"] .guest-login-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.light-theme [role="menu"] .text-red-400,
+html.light-theme [role="menu"] button.text-red-400 {
+  color: #dc2626 !important;
+}
+
+html.light-theme [role="menu"] .border-b,
+html.light-theme [role="menu"] .border-t {
+  border-color: #e2e8f0 !important;
+}
+
+html.light-theme .auth-card label,
+html.light-theme .form-label,
+html.light-theme .auth-label {
+  color: #000000 !important;
+}
+
+html.light-theme .auth-card input,
+html.light-theme .auth-input {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+/* ==========================================
+   ACCOUNTS & ACCOUNT DETAILS - WHITE THEME
+   ========================================== */
+
+/* Accounts Card Container & Header */
+html.light-theme .accounts-main-card {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme .accounts-header {
+  border-bottom: 1px solid #000000 !important;
+}
+
+html.light-theme .accounts-header h2,
+html.light-theme .accounts-header .accounts-icon,
+html.light-theme .accounts-subpage-header h2 {
+  color: #000000 !important;
+}
+
+html.light-theme .accounts-subpage-header {
+  border-bottom: 1px solid #000000 !important;
+}
+
+/* Account action buttons (Account Details, Change Password, Delete Account) */
+html.light-theme .account-action-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light-theme .account-action-btn span {
+  color: #000000 !important;
+}
+
+html.light-theme .account-action-btn svg.text-blue-400,
+html.light-theme .account-action-btn svg.text-blue-500 {
+  color: #2563eb !important;
+}
+
+html.light-theme .account-action-btn svg.text-amber-400,
+html.light-theme .account-action-btn svg.text-amber-500 {
+  color: #d97706 !important;
+}
+
+html.light-theme .account-action-btn svg.text-red-400,
+html.light-theme .account-action-btn svg.text-red-500 {
+  color: #dc2626 !important;
+}
+
+/* Back to Accounts Button */
+html.light-theme .back-to-accounts-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #2563eb !important;
+}
+
+html.light-theme .back-to-accounts-btn span,
+html.light-theme .back-to-accounts-btn svg {
+  color: #2563eb !important;
+}
+
+/* Main Account Details Card & Inner Elements */
+html.light-theme .account-details-card {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light-theme .account-details-card > div,
+html.light-theme .account-details-card .divide-y > * + * {
+  border-color: #e2e8f0 !important;
+}
+
+html.light-theme .account-details-card .field-label,
+html.light-theme .account-details-card label,
+html.light-theme .account-details-card h3,
+html.light-theme .account-details-card h4 {
+  color: #000000 !important;
+}
+
+html.light-theme .account-details-card .field-subtext,
+html.light-theme .account-details-card p {
+  color: #334155 !important;
+}
+
+/* Editable Field Box */
+html.light-theme .account-details-card .field-box {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme .account-details-card .field-box span:first-child {
+  color: #000000 !important;
+}
+
+/* "Click to edit" text */
+html.light-theme .account-details-card .click-to-edit-text {
+  color: #475569 !important;
+}
+
+/* Editable Field Input Box when active */
+html.light-theme .account-details-card .field-input,
+html.light-theme .account-details-card input[type="text"],
+html.light-theme .account-details-card input[type="email"],
+html.light-theme .account-details-card input[type="password"] {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+/* Photo Links */
+html.light-theme .account-details-card .upload-photo-btn {
+  color: #000000 !important;
+  text-decoration: underline !important;
+}
+
+html.light-theme .account-details-card .remove-photo-btn {
+  color: #dc2626 !important;
+  text-decoration: underline !important;
+}
+
+/* Save Account Details Button */
+html.light-theme .account-details-card .save-details-btn {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+}
+
+html.light-theme .account-details-card .save-details-btn:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* ==========================================
+   WHITE THEME - MODALS & DIALOGS
+   ========================================== */
+
+/* Modal Container background, border, text */
+html.light-theme [role="dialog"] {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Modal Title */
+html.light-theme [role="dialog"] h3 {
+  color: #000000 !important;
+}
+
+/* Modal Close (X) Icon */
+html.light-theme [role="dialog"] button[aria-label="Close dialog"],
+html.light-theme [role="dialog"] button[aria-label="Close dialog"] svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* Modal Header Divider Line */
+html.light-theme [role="dialog"] .border-b {
+  border-bottom: 1px solid #000000 !important;
+}
+
+/* Modal Body Description Text */
+html.light-theme [role="dialog"] p,
+html.light-theme [role="dialog"] .modal-body,
+html.light-theme [role="dialog"] .text-slate-200 {
+  color: #000000 !important;
+}
+
+/* Modal Cancel Button */
+html.light-theme [role="dialog"] .btn-secondary {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+/* Modal Logout / Danger Button */
+html.light-theme [role="dialog"] .btn-danger {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
+}
+
+/* ==========================================
+   GUEST ACCOUNT CARD & OTHER CARDS - WHITE THEME
+   ========================================== */
+
+/* Guest Account Card in Settings -> Accounts */
+html.light-theme .guest-account-card {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light-theme .guest-account-card h3 {
+  color: #000000 !important;
+}
+
+html.light-theme .guest-account-card p {
+  color: #334155 !important;
+}
+
+html.light-theme .guest-account-card .w-8,
+html.light-theme .guest-account-card .w-10 {
+  background-color: #f1f5f9 !important;
+  border-color: #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme .guest-account-card .w-8 svg,
+html.light-theme .guest-account-card .w-10 svg {
+  color: #000000 !important;
+}
+
+html.light-theme .guest-account-card a,
+html.light-theme .guest-account-card a span,
+html.light-theme .guest-account-card a svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* History Page Guest Account Avatar Badge in White Theme */
+html.light-theme .history-guest-avatar {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+html.light-theme .history-guest-avatar svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+
+
+
+
+
 
 

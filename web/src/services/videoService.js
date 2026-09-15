@@ -9,6 +9,8 @@ export const videoService = {
     const userSettings = storageService.getSettings();
     let saveFileHandle = null;
 
+    const isImg = /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(filenameHint) || filenameHint.toLowerCase().includes('image');
+
     // Prompt native Save As dialog upfront if supported and using default location
     if (userSettings.downloadLocation !== 'custom' && typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
       try {
@@ -16,8 +18,12 @@ export const videoService = {
           suggestedName: filenameHint,
           types: [
             {
-              description: 'Video File',
-              accept: {
+              description: isImg ? 'Image File' : 'Video File',
+              accept: isImg ? {
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/png': ['.png'],
+                'image/webp': ['.webp']
+              } : {
                 'video/mp4': ['.mp4'],
                 'video/webm': ['.webm'],
                 'application/octet-stream': ['.mp4']

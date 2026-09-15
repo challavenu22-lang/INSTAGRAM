@@ -576,14 +576,14 @@ export const Settings = () => {
       </div>
 
       {/* SECTION 1: ACCOUNTS CARD */}
-      <div className="rounded-xl md:rounded-2xl glass-panel p-3.5 md:p-6 shadow-lg space-y-3.5 md:space-y-5 border border-blue-500/80">
-        <div className="flex items-center gap-2 md:gap-2.5 border-b border-slate-700/40 pb-2.5 md:pb-3">
-          <User className="w-4 h-4 md:w-5 md:h-5 text-brand-400" />
+      <div className="accounts-main-card rounded-xl md:rounded-2xl glass-panel p-3.5 md:p-6 shadow-lg space-y-3.5 md:space-y-5 border border-blue-500/80">
+        <div className="accounts-header flex items-center gap-2 md:gap-2.5 border-b border-slate-700/40 pb-2.5 md:pb-3">
+          <User className="accounts-icon w-4 h-4 md:w-5 md:h-5 text-brand-400" />
           <h2 className="text-base md:text-lg font-semibold theme-text-primary">Accounts</h2>
         </div>
 
         {!user ? (
-          <div className="p-3.5 md:p-5 rounded-xl md:rounded-2xl bg-slate-900/80 border border-slate-700/50 space-y-3 md:space-y-3.5 shadow-md">
+          <div className="guest-account-card p-3.5 md:p-5 rounded-xl md:rounded-2xl bg-slate-900/80 border border-slate-700/50 space-y-3 md:space-y-3.5 shadow-md">
             <div className="flex items-start sm:items-center gap-2.5 md:gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-500/20 border border-brand-500/40 text-brand-400 flex items-center justify-center font-bold text-xs md:text-sm shrink-0">
                 <User className="w-4 h-4 md:w-5 md:h-5 text-brand-400" />
@@ -616,7 +616,7 @@ export const Settings = () => {
                   setAccountSubPage('details');
                   setActiveMobileDetail(null);
                 }}
-                className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
+                className="account-action-btn text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
               >
                 <User className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-400" />
                 <span>Account Details</span>
@@ -633,7 +633,7 @@ export const Settings = () => {
                   setConfirmPassword('');
                   setPasswordError(null);
                 }}
-                className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
+                className="account-action-btn text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
               >
                 <KeyRound className="w-3.5 h-3.5 md:w-4 md:h-4 text-amber-400" />
                 <span>Change Password</span>
@@ -645,7 +645,7 @@ export const Settings = () => {
                   setDeletePasswordError(null);
                   setDeleteModalOpen(true);
                 }}
-                className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
+                className="account-action-btn text-[11px] md:text-xs font-semibold py-2 md:py-2.5 px-3.5 md:px-4 flex items-center gap-2 rounded-lg md:rounded-xl transition-all duration-200 cursor-pointer border bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border-slate-700/50"
               >
                 <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-400" />
                 <span>Delete Account</span>
@@ -655,7 +655,7 @@ export const Settings = () => {
         ) : accountSubPage === 'details' ? (
           /* SEPARATE ACCOUNT DETAILS PAGE VIEW */
           <div className="space-y-3.5 md:space-y-5 animate-in fade-in duration-200">
-            <div className="flex flex-col items-start gap-1 md:gap-1.5 border-b border-slate-700/40 pb-2.5 md:pb-3">
+            <div className="accounts-subpage-header flex flex-col items-start gap-1 md:gap-1.5 border-b border-slate-700/40 pb-2.5 md:pb-3">
               <button
                 type="button"
                 onClick={() => {
@@ -663,7 +663,7 @@ export const Settings = () => {
                   setActiveMobileDetail(null);
                   setAccountSaveError(null);
                 }}
-                className="flex items-center gap-1.5 md:gap-2 text-[11px] md:text-xs font-semibold text-blue-400 hover:text-blue-300 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl border border-blue-500/80 hover:border-blue-400 bg-slate-800/60 hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
+                className="back-to-accounts-btn flex items-center gap-1.5 md:gap-2 text-[11px] md:text-xs font-semibold text-blue-400 hover:text-blue-300 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl border border-blue-500/80 hover:border-blue-400 bg-slate-800/60 hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
               >
                 <ArrowLeft className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-400" />
                 <span>Back to Accounts</span>
@@ -683,14 +683,14 @@ export const Settings = () => {
 
             {activeMobileDetail === null ? (
               <div className="space-y-3 sm:space-y-5 pt-1 max-w-2xl">
-                <div className="rounded-2xl bg-slate-900/80 border border-blue-500/80 overflow-hidden divide-y divide-slate-700/40 shadow-lg p-3.5 sm:p-5 space-y-3 sm:space-y-6">
+                <div className="account-details-card rounded-2xl bg-slate-900/80 border border-blue-500/80 overflow-hidden divide-y divide-slate-700/40 shadow-lg p-3.5 sm:p-5 space-y-3 sm:space-y-6">
                   
                   {/* ROW 1: Profile picture */}
                   <div className="space-y-1 sm:space-y-2 pb-2.5 sm:pb-4">
-                    <span className="text-xs sm:text-sm font-semibold theme-text-primary block">
+                    <span className="field-label text-xs sm:text-sm font-semibold theme-text-primary block">
                       Profile Picture
                     </span>
-                    <p className="text-[10px] sm:text-[11px] theme-text-muted">Click or tap picture to change photo</p>
+                    <p className="field-subtext text-[10px] sm:text-[11px] theme-text-muted">Click or tap picture to change photo</p>
 
                     <div className="flex items-center gap-3 sm:gap-4 py-1 sm:py-2">
                       <div
@@ -718,7 +718,7 @@ export const Settings = () => {
                         <button
                           type="button"
                           onClick={() => profilePicInputRef.current?.click()}
-                          className="text-xs font-medium text-brand-400 hover:text-brand-300 underline cursor-pointer text-left"
+                          className="upload-photo-btn text-xs font-medium text-brand-400 hover:text-brand-300 underline cursor-pointer text-left"
                         >
                           Click picture to upload photo
                         </button>
@@ -726,7 +726,7 @@ export const Settings = () => {
                           <button
                             type="button"
                             onClick={handleRemovePhoto}
-                            className="text-[11px] text-red-400 hover:underline cursor-pointer text-left"
+                            className="remove-photo-btn text-[11px] text-red-400 hover:underline cursor-pointer text-left"
                           >
                             Remove photo
                           </button>
@@ -744,16 +744,16 @@ export const Settings = () => {
 
                   {/* ROW 2: User Name */}
                   <div className="space-y-1 sm:space-y-2 pt-2.5 sm:pt-4 pb-1 sm:pb-2">
-                    <span className="text-xs sm:text-sm font-semibold theme-text-primary block">User Name</span>
+                    <span className="field-label text-xs sm:text-sm font-semibold theme-text-primary block">User Name</span>
 
                     {!isEditingUserName ? (
                       <div
                         onClick={() => setIsEditingUserName(true)}
-                        className="cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group"
+                        className="field-box cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group"
                         title="Click to edit User Name"
                       >
                         <span>{editUserName || displayUserName}</span>
-                        <span className="text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors">Click to edit</span>
+                        <span className="click-to-edit-text text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors">Click to edit</span>
                       </div>
                     ) : (
                       <input
@@ -768,7 +768,7 @@ export const Settings = () => {
                         }}
                         autoFocus
                         placeholder="Enter User Name"
-                        className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
+                        className="field-input w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
                       />
                     )}
 
@@ -782,16 +782,16 @@ export const Settings = () => {
 
                   {/* ROW 3: User ID */}
                   <div className="space-y-1 sm:space-y-2 pt-2.5 sm:pt-4 pb-1 sm:pb-2">
-                    <span className="text-xs sm:text-sm font-semibold theme-text-primary block">User ID</span>
+                    <span className="field-label text-xs sm:text-sm font-semibold theme-text-primary block">User ID</span>
 
                     {!isEditingUserId ? (
                       <div
                         onClick={() => setIsEditingUserId(true)}
-                        className="cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group break-all"
+                        className="field-box cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group break-all"
                         title="Click to edit User ID"
                       >
                         <span>{editUserId || displayUserId}</span>
-                        <span className="text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors">Click to edit</span>
+                        <span className="click-to-edit-text text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors">Click to edit</span>
                       </div>
                     ) : (
                       <input
@@ -806,7 +806,7 @@ export const Settings = () => {
                         }}
                         autoFocus
                         placeholder="Enter User ID"
-                        className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
+                        className="field-input w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
                       />
                     )}
 
@@ -820,16 +820,16 @@ export const Settings = () => {
 
                   {/* ROW 4: Mail ID */}
                   <div className="space-y-1 sm:space-y-2 pt-2.5 sm:pt-4 pb-1 sm:pb-2">
-                    <span className="text-xs sm:text-sm font-semibold theme-text-primary block">Mail ID</span>
+                    <span className="field-label text-xs sm:text-sm font-semibold theme-text-primary block">Mail ID</span>
 
                     {!isEditingEmail ? (
                       <div
                         onClick={() => setIsEditingEmail(true)}
-                        className="cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group"
+                        className="field-box cursor-pointer text-xs sm:text-sm font-medium theme-text-primary bg-slate-800/60 hover:bg-slate-800/90 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-700/40 hover:border-brand-500/50 transition-all flex items-center justify-between group"
                         title="Click to edit Mail ID"
                       >
                         <span className="truncate">{editEmail || user?.email || ''}</span>
-                        <span className="text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors shrink-0 ml-2">Click to edit</span>
+                        <span className="click-to-edit-text text-[10px] sm:text-[11px] text-slate-500 group-hover:text-brand-400 transition-colors shrink-0 ml-2">Click to edit</span>
                       </div>
                     ) : (
                       <input
@@ -844,7 +844,7 @@ export const Settings = () => {
                         }}
                         autoFocus
                         placeholder="Enter Mail ID"
-                        className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
+                        className="field-input w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-slate-800 border border-brand-500 theme-text-primary text-xs sm:text-sm focus:outline-none shadow-inner"
                       />
                     )}
 
@@ -858,12 +858,12 @@ export const Settings = () => {
 
                   {/* Save Account Details Button */}
                   <div className="pt-3 sm:pt-5 border-t border-slate-700/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-0">
-                    <span className="text-[11px] sm:text-xs theme-text-muted text-center sm:text-left">Click Save to update your account details</span>
+                    <span className="field-subtext text-[11px] sm:text-xs theme-text-muted text-center sm:text-left">Click Save to update your account details</span>
                     <button
                       type="button"
                       onClick={handleSaveAccountDetails}
                       disabled={accountSaveLoading}
-                      className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-xs font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md w-full sm:w-auto"
+                      className="save-details-btn bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-xs font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md w-full sm:w-auto"
                     >
                       {accountSaveLoading ? 'Saving...' : 'Save Account Details'}
                     </button>
@@ -1019,7 +1019,7 @@ export const Settings = () => {
         ) : (
           /* SEPARATE CHANGE PASSWORD PAGE VIEW */
           <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="flex flex-col items-start gap-1.5 border-b border-slate-700/40 pb-3">
+            <div className="accounts-subpage-header flex flex-col items-start gap-1.5 border-b border-slate-700/40 pb-3">
               <button
                 type="button"
                 onClick={() => {
@@ -1031,7 +1031,7 @@ export const Settings = () => {
                   setConfirmPassword('');
                   setPasswordError(null);
                 }}
-                className="flex items-center gap-2 text-xs font-semibold text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-xl border border-blue-500/80 hover:border-blue-400 bg-slate-800/60 hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
+                className="back-to-accounts-btn flex items-center gap-2 text-xs font-semibold text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-xl border border-blue-500/80 hover:border-blue-400 bg-slate-800/60 hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4 text-blue-400" />
                 <span>Back to Accounts</span>
@@ -1040,7 +1040,7 @@ export const Settings = () => {
             </div>
 
             {!showForgotPassword ? (
-              <div className="rounded-2xl bg-slate-900/80 border border-blue-500/80 p-3.5 sm:p-5 shadow-lg space-y-4 max-w-lg">
+              <div className="account-details-card rounded-2xl bg-slate-900/80 border border-blue-500/80 p-3.5 sm:p-5 shadow-lg space-y-4 max-w-lg">
                 <div className="flex items-center justify-between border-b border-slate-700/40 pb-2.5">
                   <h3 className="text-sm font-semibold theme-text-primary flex items-center gap-2">
                     <KeyRound className="w-4 h-4 text-amber-400" />
@@ -1070,7 +1070,7 @@ export const Settings = () => {
                           setPasswordError(null);
                         }}
                         placeholder="Enter current password"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
+                        className="field-input w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
                         required
                       />
                       <div className="mt-2 text-left">
@@ -1112,7 +1112,7 @@ export const Settings = () => {
                           setPasswordError(null);
                         }}
                         placeholder="Enter new password"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
+                        className="field-input w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
                         required
                       />
                     </div>
@@ -1129,7 +1129,7 @@ export const Settings = () => {
                           setPasswordError(null);
                         }}
                         placeholder="Enter new password again"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
+                        className="field-input w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 theme-text-primary text-sm focus:outline-none focus:border-brand-500 transition-colors"
                         required
                       />
                     </div>
@@ -1160,7 +1160,7 @@ export const Settings = () => {
               </div>
             ) : (
               /* Forgot Password Sub-View */
-              <div className="rounded-2xl bg-slate-900/80 border border-blue-500/80 p-3.5 sm:p-5 shadow-lg space-y-4 max-w-lg">
+              <div className="account-details-card rounded-2xl bg-slate-900/80 border border-blue-500/80 p-3.5 sm:p-5 shadow-lg space-y-4 max-w-lg">
                 <div className="flex items-center justify-between border-b border-slate-700/40 pb-2.5">
                   <h3 className="text-sm font-semibold theme-text-primary">Forgot Password</h3>
                   <button

@@ -141,7 +141,7 @@ export const History = () => {
       {!user ? (
         <div className="w-[calc(100%-32px)] max-w-sm sm:max-w-md mx-auto py-4 px-4 sm:py-5 sm:px-6 rounded-2xl glass-panel shadow-lg flex flex-col items-center justify-center text-center space-y-2.5 my-1 box-border">
           {/* Guest Account Icon - Compact badge */}
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800/90 border border-slate-700/80 flex items-center justify-center mx-auto text-brand-400 shadow-inner shrink-0 p-0">
+          <div className="history-guest-avatar w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800/90 border border-slate-700/80 flex items-center justify-center mx-auto text-brand-400 shadow-inner shrink-0 p-0">
             <User className="w-5 h-5 sm:w-6 sm:h-6 text-brand-400 shrink-0 stroke-[2.25]" />
           </div>
           

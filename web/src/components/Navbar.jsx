@@ -14,8 +14,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { Modal } from './Modal';
 
-// Solid filled white house icon with door cutout
-const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" }) => (
+// Solid filled house icon with door cutout
+const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
     viewBox="0 0 24 24" 
@@ -80,7 +80,7 @@ export const Navbar = () => {
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
-          <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" />
+          <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" />
           <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">Home</span>
         </Link>
 
@@ -91,7 +91,7 @@ export const Navbar = () => {
             aria-hidden={isOpen}
           >
             {user ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 theme-text-primary text-xs font-semibold shadow-sm">
+              <div className="account-btn flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 theme-text-primary text-xs font-semibold shadow-sm">
                 {user?.picture ? (
                   <img 
                     src={user.picture} 
@@ -285,9 +285,9 @@ export const Navbar = () => {
                     </div>
 
                     <div className="border-t border-white/20 my-0.5 pt-1 space-y-1 pb-0.5">
-                      <div className="px-3 py-0.5 flex items-center gap-2 text-[11px] sm:text-xs font-semibold theme-text-secondary select-none">
-                        <User className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-                        <span>Guest Account</span>
+                      <div className="guest-account-header px-3 py-0.5 flex items-center gap-2 text-[11px] sm:text-xs font-semibold theme-text-secondary select-none">
+                        <User className="guest-account-icon w-3.5 h-3.5 text-brand-400 shrink-0" />
+                        <span className="guest-account-text">Guest Account</span>
                       </div>
                       <div className="px-3 flex justify-start">
                         {isLoginPage ? (
@@ -295,7 +295,7 @@ export const Navbar = () => {
                             type="button"
                             disabled
                             onClick={(e) => e.preventDefault()}
-                            className="px-3 py-1 text-xs font-semibold text-white bg-blue-900 border border-blue-700/60 rounded-lg opacity-50 cursor-not-allowed pointer-events-auto select-none inline-flex items-center gap-1.5"
+                            className="guest-login-btn px-3 py-1 text-xs font-semibold text-white bg-blue-900 border border-blue-700/60 rounded-lg opacity-50 cursor-not-allowed pointer-events-auto select-none inline-flex items-center gap-1.5"
                             style={{ cursor: 'not-allowed' }}
                             aria-disabled="true"
                           >
@@ -306,7 +306,7 @@ export const Navbar = () => {
                           <Link
                             to="/login"
                             onClick={() => setIsOpen(false)}
-                            className="px-3 py-1 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 rounded-lg transition-all duration-200 shadow-md shadow-blue-950/40 inline-flex items-center gap-1.5"
+                            className="guest-login-btn px-3 py-1 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 rounded-lg transition-all duration-200 shadow-md shadow-blue-950/40 inline-flex items-center gap-1.5"
                             role="menuitem"
                           >
                             <LogIn size={15} strokeWidth={2} className="shrink-0 text-white rotate-90" />
@@ -330,7 +330,7 @@ export const Navbar = () => {
         onClose={() => setLogoutModalOpen(false)}
         title="Logout Confirmation"
       >
-        <div className="space-y-4 text-slate-200">
+        <div className="modal-body space-y-4 text-slate-200">
           <p className="text-sm font-medium">Are you sure you want to logout?</p>
           <div className="flex items-center justify-end gap-3 pt-2">
             <button

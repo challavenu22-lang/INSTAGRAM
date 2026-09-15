@@ -5,6 +5,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 import { instagramGetUrl } from 'instagram-url-direct';
+import { extractWithPuppeteer } from './puppeteerScraper.js';
 import { validateVideoUrl } from '../utils/urlValidator.js';
 import { sanitizeFilename } from '../utils/filenameSanitizer.js';
 import { MAX_FILE_SIZE_BYTES } from '../config/constants.js';
@@ -13,8 +14,10 @@ import { logger } from '../utils/logger.js';
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
+
 const mediaStreamCache = new Map();
 const thumbnailCache = new Map();
+const mediaInfoCache = new Map();
 
 function getCachedMediaUrl(shortcode) {
   const cached = mediaStreamCache.get(shortcode);
@@ -28,6 +31,23 @@ function setCachedMediaUrl(shortcode, url) {
   if (shortcode && url) {
     mediaStreamCache.set(shortcode, {
       url,
+      expiry: Date.now() + 10 * 60 * 1000
+    });
+  }
+}
+
+function getCachedMediaInfo(shortcode) {
+  const cached = mediaInfoCache.get(shortcode);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.info;
+  }
+  return null;
+}
+
+function setCachedMediaInfo(shortcode, info) {
+  if (shortcode && info && info.mediaType !== 'unknown') {
+    mediaInfoCache.set(shortcode, {
+      info,
       expiry: Date.now() + 10 * 60 * 1000
     });
   }
@@ -48,6 +68,23 @@ function setCachedThumbnailUrl(shortcode, url) {
       expiry: Date.now() + 10 * 60 * 1000
     });
   }
+}
+
+function isImageUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return false;
+  const lower = urlStr.toLowerCase();
+  if (/\.(jpg|jpeg|png|webp|gif|bmp)(\?|$)/i.test(lower)) return true;
+  if (lower.includes('format=jpg') || lower.includes('format=png') || lower.includes('mime=image')) return true;
+  return false;
+}
+
+function isVideoUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return false;
+  const lower = urlStr.toLowerCase();
+  if (urlStr.startsWith('/tmp/') || urlStr.includes('merged_') || urlStr.includes('vid_')) return true;
+  if (/\.(mp4|m4v|webm|mov)(\?|$)/i.test(lower)) return true;
+  if (lower.includes('_n.mp4') || lower.includes('_v.mp4') || lower.includes('progressive') || lower.includes('video_dashinit') || lower.includes('mime=video') || lower.includes('/o1/v/')) return true;
+  return false;
 }
 
 export const downloadService = {
@@ -71,11 +108,13 @@ export const downloadService = {
         videoType: 'direct',
         contentType: 'video/mp4',
         fileSizeBytes: 1127000,
-        canPreview: true
+        canPreview: true,
+        isVideo: true,
+        mediaType: 'video'
       };
     }
 
-    let title = 'Authorized Video Stream';
+    let title = 'Authorized Media Stream';
     let thumbnailUrl = null;
     let videoType = 'direct';
     let streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
@@ -90,42 +129,92 @@ export const downloadService = {
         };
       }
 
-      title = `Instagram Video (${shortcode})`;
-      thumbnailUrl = getCachedThumbnailUrl(shortcode) || null;
       videoType = 'instagram';
-      streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
+      const mediaInfo = await downloadService.extractDirectMediaInfo(targetUrl);
 
-      try {
-        const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-        if (resolved && (resolved.startsWith('http') || fs.existsSync(resolved))) {
-          if (resolved.startsWith('/')) {
-            streamUrl = resolved;
-          }
-          const cachedThumb = getCachedThumbnailUrl(shortcode);
-          if (cachedThumb) {
-            thumbnailUrl = cachedThumb;
-          }
-        }
-      } catch (e) {
-        logger.warn('Direct media pre-extraction non-fatal warning', { error: e.message });
+      if (!mediaInfo.url && mediaInfo.mediaType === 'unknown') {
+        throw {
+          status: 400,
+          message: 'Unable to retrieve media from this Instagram URL. Please verify that the post or reel is public.'
+        };
       }
+
+      const isVid = mediaInfo.isVideo !== false && mediaInfo.mediaType === 'video';
+      const isCarousel = mediaInfo.mediaType === 'carousel' || (mediaInfo.items && mediaInfo.items.length > 1);
+
+      title = isCarousel 
+        ? `Instagram Carousel (${shortcode})`
+        : (isVid ? `Instagram Video (${shortcode})` : `Instagram Image (${shortcode})`);
+      thumbnailUrl = mediaInfo.thumbnailUrl || mediaInfo.url || getCachedThumbnailUrl(shortcode) || null;
+
+      if (mediaInfo.url && mediaInfo.url.startsWith('/')) {
+        streamUrl = mediaInfo.url;
+      } else {
+        streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
+      }
+
+      const mediaUrl = streamUrl;
+      const downloadUrl = `/api/video/download`;
+
+      const itemsList = mediaInfo.items ? mediaInfo.items.map((item, idx) => {
+        const itemIsVid = item.isVideo === true || item.mediaType === 'video';
+        const streamPath = `/api/video/stream?url=${encodeURIComponent(item.url || targetUrl)}`;
+        return {
+          index: idx + 1,
+          type: itemIsVid ? 'video' : 'image',
+          mediaType: itemIsVid ? 'video' : 'image',
+          isVideo: itemIsVid,
+          url: item.url,
+          mediaUrl: streamPath,
+          streamUrl: streamPath,
+          downloadUrl: `/api/video/download`,
+          sourceUrl: item.url || targetUrl,
+          thumbnailUrl: itemIsVid ? item.thumbnailUrl : item.url
+        };
+      }) : null;
+
+      return {
+        sourceUrl: targetUrl,
+        sourceDomain: hostname,
+        title,
+        thumbnailUrl,
+        streamUrl,
+        mediaUrl,
+        downloadUrl,
+        directMediaUrl: mediaInfo.url,
+        videoType,
+        contentType: mediaInfo.contentType || (isVid ? 'video/mp4' : 'image/jpeg'),
+        fileSizeBytes: null,
+        canPreview: true,
+        isVideo: isVid,
+        mediaType: isCarousel ? 'carousel' : (isVid ? 'video' : 'image'),
+        mediaItems: itemsList,
+        items: itemsList
+      };
     } else {
       const pathname = urlObj.pathname;
-      const rawFileName = pathname.substring(pathname.lastIndexOf('/') + 1) || 'video.mp4';
-      title = decodeURIComponent(rawFileName).replace(/[_-]/g, ' ') || 'Direct Video Stream';
-    }
+      const isImg = isImageUrl(pathname);
+      const rawFileName = pathname.substring(pathname.lastIndexOf('/') + 1) || (isImg ? 'image.jpg' : 'video.mp4');
+      title = decodeURIComponent(rawFileName).replace(/[_-]/g, ' ') || (isImg ? 'Direct Image Stream' : 'Direct Video Stream');
+      const mediaUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
+      const downloadUrl = `/api/video/download`;
 
-    return {
-      sourceUrl: targetUrl,
-      sourceDomain: hostname,
-      title,
-      thumbnailUrl,
-      streamUrl,
-      videoType,
-      contentType: 'video/mp4',
-      fileSizeBytes: null,
-      canPreview: true
-    };
+      return {
+        sourceUrl: targetUrl,
+        sourceDomain: hostname,
+        title,
+        thumbnailUrl: isImg ? targetUrl : null,
+        streamUrl: targetUrl,
+        mediaUrl,
+        downloadUrl,
+        videoType: 'direct',
+        contentType: isImg ? 'image/jpeg' : 'video/mp4',
+        fileSizeBytes: null,
+        canPreview: true,
+        isVideo: !isImg,
+        mediaType: isImg ? 'image' : 'video'
+      };
+    }
   },
 
   downloadVideo: async (rawUrl, userId, res) => {
@@ -136,19 +225,32 @@ export const downloadService = {
 
     const targetUrl = validation.url;
     const hostname = validation.hostname;
+    const urlObj = new URL(targetUrl);
 
     let streamMediaUrl = targetUrl;
-    if (hostname.includes('instagram.com') || hostname.includes('instagr.am')) {
-      const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-      if (resolved) {
-        streamMediaUrl = resolved;
+    let isImageMedia = isImageUrl(targetUrl);
+
+    const isPostPage = urlObj.pathname.match(/\/(reel|p|tv)\/([^\/]+)/);
+
+    if (isPostPage && (hostname.includes('instagram.com') || hostname.includes('instagr.am'))) {
+      const mediaInfo = await downloadService.extractDirectMediaInfo(targetUrl);
+      if (!mediaInfo.url && mediaInfo.mediaType === 'unknown') {
+        throw {
+          status: 400,
+          message: 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.'
+        };
       }
+      if (mediaInfo.url) {
+        streamMediaUrl = mediaInfo.url;
+      }
+      isImageMedia = mediaInfo.mediaType === 'image' || (mediaInfo.isVideo === false && !isVideoUrl(streamMediaUrl));
     }
 
     if (streamMediaUrl.startsWith('/tmp/') || fs.existsSync(streamMediaUrl)) {
       const stat = fs.statSync(streamMediaUrl);
-      const cleanFilename = sanitizeFilename(hostname + '_video.mp4');
-      res.setHeader('Content-Type', 'video/mp4');
+      const ext = isImageMedia ? '.jpg' : '.mp4';
+      const cleanFilename = sanitizeFilename(hostname + (isImageMedia ? '_image' : '_video') + ext);
+      res.setHeader('Content-Type', isImageMedia ? 'image/jpeg' : 'video/mp4');
       res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
       res.setHeader('Content-Length', stat.size);
       fs.createReadStream(streamMediaUrl).pipe(res);
@@ -161,7 +263,7 @@ export const downloadService = {
           await historyService.createHistoryItem(userId, {
             sourceUrl: targetUrl,
             sourceDomain: hostname,
-            title: `Instagram Video (${targetUrl})`,
+            title: isImageMedia ? `Instagram Image (${targetUrl})` : `Instagram Video (${targetUrl})`,
             thumbnailUrl: cachedThumb || null,
             status: 'COMPLETED',
             fileSize: stat.size
@@ -189,21 +291,23 @@ export const downloadService = {
         const contentType = remoteRes.headers['content-type'] || '';
 
         if (contentType.includes('text/html')) {
-          return reject({ status: 400, message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.' });
+          return reject({ status: 400, message: 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.' });
         }
 
         if (remoteRes.statusCode !== 200 && remoteRes.statusCode !== 206) {
-          return reject({ status: 400, message: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.' });
+          return reject({ status: 400, message: 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.' });
         }
 
         const contentLength = parseInt(remoteRes.headers['content-length'] || '0', 10);
         if (contentLength > MAX_FILE_SIZE_BYTES) {
-          return reject({ status: 413, message: 'Requested video exceeds maximum allowed size limit (500 MB).' });
+          return reject({ status: 413, message: 'Requested media exceeds maximum allowed size limit (500 MB).' });
         }
 
-        const cleanFilename = sanitizeFilename(hostname + '_video.mp4');
+        const isImg = isImageMedia || contentType.includes('image/');
+        const ext = isImg ? '.jpg' : '.mp4';
+        const cleanFilename = sanitizeFilename(hostname + (isImg ? '_image' : '_video') + ext);
 
-        res.setHeader('Content-Type', 'video/mp4');
+        res.setHeader('Content-Type', contentType || (isImg ? 'image/jpeg' : 'video/mp4'));
         res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
         if (contentLength > 0) {
           res.setHeader('Content-Length', contentLength);
@@ -212,7 +316,7 @@ export const downloadService = {
         remoteRes.pipe(res);
 
         remoteRes.on('end', async () => {
-          logger.info('Video download completed successfully', { userId });
+          logger.info('Media download completed successfully', { userId });
           if (userId) {
             try {
               const match = targetUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
@@ -222,7 +326,7 @@ export const downloadService = {
               await historyService.createHistoryItem(userId, {
                 sourceUrl: targetUrl,
                 sourceDomain: hostname,
-                title: `Instagram Video (${targetUrl})`,
+                title: isImg ? `Instagram Image (${targetUrl})` : `Instagram Video (${targetUrl})`,
                 thumbnailUrl: cachedThumb || null,
                 status: 'COMPLETED',
                 fileSize: contentLength > 0 ? contentLength : null
@@ -236,13 +340,13 @@ export const downloadService = {
 
         remoteRes.on('error', async (err) => {
           logger.error('Stream error during download', { error: err.message });
-          reject({ status: 500, message: 'Video stream interrupted during download.' });
+          reject({ status: 500, message: 'Media stream interrupted during download.' });
         });
       });
 
       req.on('error', async (err) => {
-        logger.error('Connection error requesting video URL', { error: err.message });
-        reject({ status: 502, message: 'Could not connect to video server. Please check the URL.' });
+        logger.error('Connection error requesting media URL', { error: err.message });
+        reject({ status: 502, message: 'Could not connect to media server. Please check the URL.' });
       });
 
       req.on('timeout', () => {
@@ -259,35 +363,65 @@ export const downloadService = {
       .split('<')[0]
       .split('"')[0]
       .split("'")[0]
-      .replace(/\\\/|\\/g, '/')
       .replace(/\\u0026/g, '&')
       .replace(/&amp;/g, '&')
       .replace(/\\u00253D/gi, '=')
-      .replace(/%3D/gi, '=')
+      .replace(/\\u0025/g, '%')
+      .replace(/\\\/|\\/g, '/')
       .replace(/([^:]\/)\/+/g, '$1');
 
     if (cleaned.endsWith('/')) {
       cleaned = cleaned.slice(0, -1);
     }
+
     return cleaned;
   },
 
-  extractDirectMediaUrl: async (targetUrl) => {
+  extractDirectMediaInfo: async (targetUrl) => {
     try {
       const urlObj = new URL(targetUrl);
       const match = urlObj.pathname.match(/\/(reel|p|tv)\/([^\/]+)/);
-      if (!match) return null;
+      if (!match) {
+        return {
+          url: null,
+          isVideo: false,
+          mediaType: 'unknown',
+          contentType: null,
+          thumbnailUrl: null
+        };
+      }
       const shortcode = match[2];
 
-      const cached = getCachedMediaUrl(shortcode);
-      if (cached) {
-        return cached;
+      const cachedInfo = getCachedMediaInfo(shortcode);
+      if (cachedInfo) {
+        return cachedInfo;
+      }
+
+      const cachedUrl = getCachedMediaUrl(shortcode);
+      if (cachedUrl) {
+        if (isVideoUrl(cachedUrl)) {
+          return {
+            url: cachedUrl,
+            isVideo: true,
+            mediaType: 'video',
+            contentType: 'video/mp4',
+            thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+          };
+        } else if (isImageUrl(cachedUrl)) {
+          return {
+            url: cachedUrl,
+            isVideo: false,
+            mediaType: 'image',
+            contentType: 'image/jpeg',
+            thumbnailUrl: cachedUrl
+          };
+        }
       }
 
       // Method 0: RapidAPI Integration (if API key is present)
       if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY.trim()) {
         try {
-          const rapidUrl = await new Promise((resolve) => {
+          const rapidResult = await new Promise((resolve) => {
             const req = https.request({
               hostname: process.env.RAPIDAPI_HOST || 'instagram-scraper-stable-api.p.rapidapi.com',
               path: '/get_media_data.php',
@@ -305,8 +439,7 @@ export const downloadService = {
                 try {
                   const data = JSON.parse(body);
                   if (res.statusCode === 200 && data) {
-                    const videoLink = data.video_url || data.video_versions?.[0]?.url || data.media_url || data.url;
-                    if (videoLink) return resolve(videoLink);
+                    return resolve(data);
                   } else {
                     logger.warn('RapidAPI response info', { status: res.statusCode, message: data.message });
                   }
@@ -319,9 +452,35 @@ export const downloadService = {
             req.end();
           });
 
-          if (rapidUrl) {
-            setCachedMediaUrl(shortcode, rapidUrl);
-            return rapidUrl;
+          if (rapidResult) {
+            const videoLink = rapidResult.video_url || rapidResult.video_versions?.[0]?.url;
+            const isVid = rapidResult.is_video === true || rapidResult.media_type === 2 || Boolean(videoLink);
+            const rawThumb = rapidResult.display_url || rapidResult.display_resources?.[rapidResult.display_resources.length - 1]?.src || rapidResult.image_versions2?.candidates?.[0]?.url || rapidResult.thumbnail_url;
+            const thumb = rawThumb ? downloadService.cleanMediaUrl(rawThumb) : null;
+
+            if (thumb) {
+              setCachedThumbnailUrl(shortcode, thumb);
+            }
+
+            if (videoLink && isVid) {
+              setCachedMediaUrl(shortcode, videoLink);
+              return {
+                url: videoLink,
+                isVideo: true,
+                mediaType: 'video',
+                contentType: 'video/mp4',
+                thumbnailUrl: thumb || null
+              };
+            } else if (thumb) {
+              setCachedMediaUrl(shortcode, thumb);
+              return {
+                url: thumb,
+                isVideo: false,
+                mediaType: 'image',
+                contentType: 'image/jpeg',
+                thumbnailUrl: thumb
+              };
+            }
           }
         } catch (e) {
           logger.warn('RapidAPI extraction exception', { error: e.message });
@@ -331,17 +490,43 @@ export const downloadService = {
       // Method 1: Try instagram-url-direct package
       try {
         const instaRes = await instagramGetUrl(targetUrl);
-        if (instaRes && instaRes.url_list && instaRes.url_list.length > 0) {
-          const directUrl = instaRes.url_list[0];
-          if (directUrl) {
-            setCachedMediaUrl(shortcode, directUrl);
-            return directUrl;
+        if (instaRes) {
+          const mediaType = instaRes.type || (instaRes.media_has_video ? 'video' : null);
+          const urlsList = instaRes.url_list || [];
+
+          if (urlsList.length > 0) {
+            const items = urlsList.map(u => {
+              const isVid = isVideoUrl(u);
+              return {
+                url: u,
+                isVideo: isVid,
+                mediaType: isVid ? 'video' : 'image',
+                contentType: isVid ? 'video/mp4' : 'image/jpeg'
+              };
+            });
+
+            const hasVideo = items.some(i => i.isVideo);
+            const selectedItem = (mediaType === 'video' || hasVideo) 
+              ? (items.find(i => i.isVideo) || items[0])
+              : items[0];
+
+            setCachedMediaUrl(shortcode, selectedItem.url);
+
+            return {
+              url: selectedItem.url,
+              isVideo: selectedItem.isVideo,
+              mediaType: selectedItem.mediaType,
+              contentType: selectedItem.contentType,
+              thumbnailUrl: getCachedThumbnailUrl(shortcode) || (selectedItem.isVideo ? null : selectedItem.url),
+              items: items.length > 1 ? items : null
+            };
           }
         }
       } catch (err) {
         logger.warn('instagram-url-direct extraction fallback', { error: err.message });
       }
 
+      // Method 2: HTML Scraping via httpGetBot
       const httpGetBot = (urlStr, depth = 0) => {
         if (depth > 5) return Promise.resolve('');
         return new Promise((resolve) => {
@@ -366,17 +551,27 @@ export const downloadService = {
       const bodyReel = await httpGetBot(`https://www.instagram.com/reel/${shortcode}/`);
       const cleanBody = (bodyReel || '').replace(/\\\/|\\/g, '/').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
 
+      // Find uncropped full-resolution photo URLs (avoid cropped thumbnails like stp=c... or s150x150)
+      const allImgUrls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:jpg|jpeg|webp|png)[^\s"'<>]+/gi) || [];
+      const uncroppedCandidate = allImgUrls.find(u => 
+        !u.includes('stp=c') && 
+        !u.includes('_s150x150') && 
+        !u.includes('_s320x320') && 
+        !u.includes('_s640x640') && 
+        !u.includes('profile_pic')
+      );
+
+      const displayUrlMatch = cleanBody.match(/"display_url"\s*:\s*"([^"]+)"/i) ||
+                              cleanBody.match(/"display_resources"\s*:\s*\[\s*\{\s*"src"\s*:\s*"([^"]+)"/i);
       const ogImgMatch = cleanBody.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
                          cleanBody.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-      let extractedThumbnail = ogImgMatch ? ogImgMatch[1] : null;
-      if (!extractedThumbnail) {
-        const imgUrls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*\.(?:jpg|jpeg|webp|png)[^\s"'<>]+/gi) || [];
-        if (imgUrls.length > 0) {
-          extractedThumbnail = imgUrls[0];
-        }
-      }
+
+      let extractedThumbnail = uncroppedCandidate 
+        ? downloadService.cleanMediaUrl(uncroppedCandidate)
+        : (displayUrlMatch ? downloadService.cleanMediaUrl(displayUrlMatch[1]) : (ogImgMatch ? downloadService.cleanMediaUrl(ogImgMatch[1]) : (allImgUrls.length > 0 ? downloadService.cleanMediaUrl(allImgUrls[0]) : null)));
+
       if (extractedThumbnail) {
-        setCachedThumbnailUrl(shortcode, downloadService.cleanMediaUrl(extractedThumbnail));
+        setCachedThumbnailUrl(shortcode, extractedThumbnail);
       }
 
       const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*?(?:\.mp4|\.m4a|\/o1\/v\/|\/v\/t[0-9]*\/|efg=|video_dashinit|audio_dashinit)[^\s"'<>]+/gi) || [];
@@ -407,14 +602,20 @@ export const downloadService = {
         }
       }
 
-      // Priority 1: Combined Progressive URL (Contains both Video AND Audio in 1 file)
+      // Priority 1: Combined Progressive Video URL
       if (progressiveUrl) {
         logger.info('[MEDIA EXTRACTION] Selected progressive audio+video URL', { shortcode, url: progressiveUrl.slice(0, 80) });
         setCachedMediaUrl(shortcode, progressiveUrl);
-        return progressiveUrl;
+        return {
+          url: progressiveUrl,
+          isVideo: true,
+          mediaType: 'video',
+          contentType: 'video/mp4',
+          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+        };
       }
 
-      // Priority 2: Multiplex DASH video + DASH audio via FFmpeg into combined MP4
+      // Priority 2: Multiplex DASH video + DASH audio via FFmpeg
       if (dashVideoUrl && audioUrl) {
         logger.info('[AUDIO-VIDEO MULTIPLEXING START]', { shortcode, videoUrl: dashVideoUrl.slice(0, 80), audioUrl: audioUrl.slice(0, 80) });
         const tempVid = path.join('/tmp', `vid_${shortcode}.mp4`);
@@ -437,25 +638,207 @@ export const downloadService = {
 
         logger.info('[AUDIO-VIDEO MULTIPLEXING SUCCESS]', { shortcode, mergedFilePath: tempOut });
         setCachedMediaUrl(shortcode, tempOut);
-        return tempOut;
+        return {
+          url: tempOut,
+          isVideo: true,
+          mediaType: 'video',
+          contentType: 'video/mp4',
+          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+        };
       }
 
-      // Priority 3: Fall back to non-DASH URL or first extracted URL
+      // Priority 3: Fall back to non-DASH URL or first extracted video URL
       const fallbackUrl = urls.find(u => {
         const c = downloadService.cleanMediaUrl(u);
         return c && (c.includes('_n.mp4') || c.includes('_v.mp4') || !c.includes('dash'));
       }) || (urls.length > 0 ? downloadService.cleanMediaUrl(urls[0]) : null);
 
-      if (fallbackUrl) {
+      if (fallbackUrl && isVideoUrl(fallbackUrl)) {
         setCachedMediaUrl(shortcode, fallbackUrl);
-        return fallbackUrl;
+        return {
+          url: fallbackUrl,
+          isVideo: true,
+          mediaType: 'video',
+          contentType: 'video/mp4',
+          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+        };
       }
 
-      return null;
+      // Fallback: If no video is present, check for CAROUSEL or IMAGE
+      if (extractedThumbnail || cleanBody.length > 0) {
+        const cleanThumb = extractedThumbnail ? downloadService.cleanMediaUrl(extractedThumbnail) : null;
+        
+        // Collect carousel items from display_urls or distinct uncropped photo URLs
+        const displayUrls = Array.from(cleanBody.matchAll(/"display_url"\s*:\s*"([^"]+)"/gi)).map(m => downloadService.cleanMediaUrl(m[1]));
+        const carouselItems = [];
+
+        if (displayUrls.length > 1) {
+          const uniqueUrls = Array.from(new Set(displayUrls));
+          uniqueUrls.forEach((u, idx) => {
+            carouselItems.push({
+              index: idx + 1,
+              url: u,
+              isVideo: false,
+              mediaType: 'image',
+              contentType: 'image/jpeg',
+              thumbnailUrl: u
+            });
+          });
+        }
+
+        if (carouselItems.length === 0) {
+          const uncropped = allImgUrls.filter(u => 
+            !u.includes('stp=c') && 
+            !u.includes('_s150x150') && 
+            !u.includes('_s320x320') && 
+            !u.includes('_s640x640') && 
+            !u.includes('profile_pic')
+          );
+
+          const seenAssets = new Set();
+          uncropped.forEach((u) => {
+            const cleanU = downloadService.cleanMediaUrl(u);
+            const assetMatch = cleanU.match(/\/([a-zA-Z0-9_-]+\.(?:jpg|jpeg|webp|png|mp4))/i) || cleanU.match(/\/([0-9]+_[0-9]+_[0-9]+)/);
+            const assetId = assetMatch ? assetMatch[1] : cleanU.split('?')[0];
+            if (!seenAssets.has(assetId)) {
+              seenAssets.add(assetId);
+              carouselItems.push({
+                index: carouselItems.length + 1,
+                url: cleanU,
+                isVideo: false,
+                mediaType: 'image',
+                contentType: 'image/jpeg',
+                thumbnailUrl: cleanU
+              });
+            }
+          });
+        }
+
+        if (carouselItems.length > 1) {
+          setCachedMediaUrl(shortcode, carouselItems[0].url);
+          const resultObj = {
+            url: carouselItems[0].url,
+            isVideo: false,
+            mediaType: 'carousel',
+            contentType: 'image/jpeg',
+            thumbnailUrl: carouselItems[0].url,
+            items: carouselItems
+          };
+          setCachedMediaInfo(shortcode, resultObj);
+          return resultObj;
+        }
+
+        if (cleanThumb) {
+          setCachedMediaUrl(shortcode, cleanThumb);
+          const resultObj = {
+            url: cleanThumb,
+            isVideo: false,
+            mediaType: 'image',
+            contentType: 'image/jpeg',
+            thumbnailUrl: cleanThumb
+          };
+          setCachedMediaInfo(shortcode, resultObj);
+          return resultObj;
+        }
+      }
+
+      // Method 3: Direct Embed Page HTTP Scraper (Fast & Serverless friendly)
+      try {
+        const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
+        const embedHtml = await new Promise((resolve) => {
+          https.get(embedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            },
+            timeout: 8000
+          }, (res) => {
+            let b = '';
+            res.on('data', chunk => b += chunk);
+            res.on('end', () => resolve(b));
+          }).on('error', () => resolve(''));
+        });
+
+        if (embedHtml && embedHtml.length > 500) {
+          const cleanEmbed = embedHtml
+            .replace(/\\u002F/gi, '/')
+            .replace(/\\\/|\\/g, '/')
+            .replace(/\\u0026/gi, '&')
+            .replace(/&amp;/g, '&')
+            .replace(/\\u0025/gi, '%');
+
+          const videoSrcMatch = cleanEmbed.match(/<video[^>]+src=["']([^"']+)["']/i) || cleanEmbed.match(/"video_url"\s*:\s*"([^"]+)"/i);
+          const imgSrcMatch = cleanEmbed.match(/<img[^>]+class="EmbeddedMediaImage"[^>]+src=["']([^"']+)["']/i) || cleanEmbed.match(/"display_url"\s*:\s*"([^"]+)"/i);
+
+          if (videoSrcMatch && videoSrcMatch[1]) {
+            const vUrl = downloadService.cleanMediaUrl(videoSrcMatch[1]);
+            const tUrl = imgSrcMatch ? downloadService.cleanMediaUrl(imgSrcMatch[1]) : null;
+            setCachedMediaUrl(shortcode, vUrl);
+            const resObj = {
+              url: vUrl,
+              isVideo: true,
+              mediaType: 'video',
+              contentType: 'video/mp4',
+              thumbnailUrl: tUrl
+            };
+            setCachedMediaInfo(shortcode, resObj);
+            return resObj;
+          }
+
+          if (imgSrcMatch && imgSrcMatch[1]) {
+            const iUrl = downloadService.cleanMediaUrl(imgSrcMatch[1]);
+            if (!iUrl.includes('profile_pic') && !iUrl.includes('s100x100')) {
+              setCachedMediaUrl(shortcode, iUrl);
+              const resObj = {
+                url: iUrl,
+                isVideo: false,
+                mediaType: 'image',
+                contentType: 'image/jpeg',
+                thumbnailUrl: iUrl
+              };
+              setCachedMediaInfo(shortcode, resObj);
+              return resObj;
+            }
+          }
+        }
+      } catch (e) {
+        logger.warn('[MEDIA EXTRACTION] Embed HTTP scraper error:', { error: e.message });
+      }
+
+      // Method 4: Puppeteer Headless Chrome Fallback
+      logger.info('[MEDIA EXTRACTION] Attempting Puppeteer extraction fallback', { shortcode, targetUrl });
+      const puppeteerResult = await extractWithPuppeteer(targetUrl);
+      if (puppeteerResult && puppeteerResult.url) {
+        setCachedMediaUrl(shortcode, puppeteerResult.url);
+        if (puppeteerResult.thumbnailUrl) {
+          setCachedThumbnailUrl(shortcode, puppeteerResult.thumbnailUrl);
+        }
+        setCachedMediaInfo(shortcode, puppeteerResult);
+        return puppeteerResult;
+      }
+
+      return {
+        url: null,
+        isVideo: false,
+        mediaType: 'unknown',
+        contentType: null,
+        thumbnailUrl: null
+      };
     } catch (e) {
-      logger.error('Error extracting direct media URL', { error: e.message });
-      return null;
+      logger.error('Error extracting direct media info', { error: e.message });
+      return {
+        url: null,
+        isVideo: false,
+        mediaType: 'unknown',
+        contentType: null,
+        thumbnailUrl: null
+      };
     }
+  },
+
+  extractDirectMediaUrl: async (targetUrl) => {
+    const info = await downloadService.extractDirectMediaInfo(targetUrl);
+    return info && info.isVideo ? info.url : null;
   },
 
   streamVideoPlayer: async (rawUrl, res, clientHeaders = {}) => {
@@ -468,10 +851,13 @@ export const downloadService = {
     const hostname = validation.hostname;
 
     let streamMediaUrl = targetUrl;
+    let isImageMedia = isImageUrl(targetUrl);
+
     if (hostname.includes('instagram.com') || hostname.includes('instagr.am')) {
-      const resolved = await downloadService.extractDirectMediaUrl(targetUrl);
-      if (resolved) {
-        streamMediaUrl = resolved;
+      const mediaInfo = await downloadService.extractDirectMediaInfo(targetUrl);
+      if (mediaInfo && mediaInfo.url) {
+        streamMediaUrl = mediaInfo.url;
+        isImageMedia = mediaInfo.mediaType === 'image' || mediaInfo.isVideo === false;
       }
     }
 
@@ -485,7 +871,7 @@ export const downloadService = {
     if (!streamMediaUrl || isUnresolvedPage) {
       return res.status(400).json({
         success: false,
-        error: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
+        error: 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.'
       });
     }
 
@@ -493,6 +879,15 @@ export const downloadService = {
       const stat = fs.statSync(streamMediaUrl);
       const fileSize = stat.size;
       const range = clientHeaders.range;
+
+      if (isImageMedia) {
+        res.writeHead(200, {
+          'Content-Length': fileSize,
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'public, max-age=86400'
+        });
+        return fs.createReadStream(streamMediaUrl).pipe(res);
+      }
 
       if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
@@ -528,8 +923,10 @@ export const downloadService = {
     return new Promise((resolve) => {
       const client = streamMediaUrl.startsWith('https:') ? https : http;
       const requestHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': isImageMedia ? 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' : 'video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8',
+        'Referer': 'https://www.instagram.com/',
+        'Origin': 'https://www.instagram.com'
       };
 
       if (clientHeaders.range) {
@@ -546,7 +943,7 @@ export const downloadService = {
           return downloadService.streamVideoPlayer(redirectUrl, res, clientHeaders).then(resolve);
         }
 
-        const contentType = remoteRes.headers['content-type'] || '';
+        const contentType = remoteRes.headers['content-type'] || (isImageMedia ? 'image/jpeg' : 'video/mp4');
 
         if (contentType.includes('text/html') || (remoteRes.statusCode !== 200 && remoteRes.statusCode !== 206)) {
           logger.warn('[MEDIA STREAM FALLBACK ERROR]', {
@@ -564,55 +961,41 @@ export const downloadService = {
                 'Accept-Ranges': 'bytes',
                 'Cache-Control': 'no-cache, no-store, must-revalidate'
               });
-              fs.createReadStream(samplePath).pipe(res);
-              return resolve();
+              return fs.createReadStream(samplePath).pipe(res);
             }
           }
-          return res.status(400).json({
-            success: false,
-            error: 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.'
-          });
+          if (!res.headersSent) {
+            res.status(400).json({
+              success: false,
+              error: 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.'
+            });
+          }
+          return resolve();
         }
 
-        logger.info('[MEDIA STREAM PREPARATION SUCCESS]', {
-          requestedReelUrl: rawUrl,
-          resolvedMediaUrl: streamMediaUrl,
-          httpStatus: remoteRes.statusCode,
-          contentType: contentType || 'video/mp4',
-          contentLength: remoteRes.headers['content-length'] || 'unknown',
-          rangeSupported: !!remoteRes.headers['accept-ranges'] || remoteRes.statusCode === 206,
-          audioTrackPreserved: true
-        });
+        const responseHeaders = {
+          'Content-Type': contentType,
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        };
 
-        res.status(remoteRes.statusCode);
-        res.setHeader('Content-Type', 'video/mp4');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
         if (remoteRes.headers['content-length']) {
-          res.setHeader('Content-Length', remoteRes.headers['content-length']);
-        }
-        if (remoteRes.headers['accept-ranges']) {
-          res.setHeader('Accept-Ranges', remoteRes.headers['accept-ranges']);
+          responseHeaders['Content-Length'] = remoteRes.headers['content-length'];
         }
         if (remoteRes.headers['content-range']) {
-          res.setHeader('Content-Range', remoteRes.headers['content-range']);
+          responseHeaders['Content-Range'] = remoteRes.headers['content-range'];
         }
 
+        res.writeHead(remoteRes.statusCode, responseHeaders);
         remoteRes.pipe(res);
-
-        remoteRes.on('end', () => resolve());
-        remoteRes.on('error', () => {
-          if (!res.headersSent) {
-            res.status(500).json({ success: false, error: 'Video playback stream interrupted.' });
-          }
-          resolve();
-        });
+        remoteRes.on('end', resolve);
       });
 
-      req.on('error', () => {
+      req.on('error', (err) => {
+        logger.error('Connection error requesting stream URL', { error: err.message });
         if (!res.headersSent) {
-          res.status(502).json({ success: false, error: 'Could not connect to video media server.' });
+          res.status(502).json({ success: false, error: 'Could not connect to media server. Please check the URL.' });
         }
         resolve();
       });
@@ -620,11 +1003,14 @@ export const downloadService = {
       req.on('timeout', () => {
         req.destroy();
         if (!res.headersSent) {
-          res.status(504).json({ success: false, error: 'Video stream request timed out.' });
+          res.status(504).json({ success: false, error: 'Stream request timed out.' });
         }
         resolve();
       });
     });
   }
 };
+
+
+
 

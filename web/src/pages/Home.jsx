@@ -74,12 +74,12 @@ export const Home = () => {
 
     const currentUrl = url.trim();
     if (!currentUrl) {
-      setError('Please paste an Instagram video URL.');
+      setError('Please paste an Instagram video or image URL.');
       return;
     }
 
     if (!isValidVideoUrl(currentUrl)) {
-      setError('Please enter a valid Instagram video URL.');
+      setError('Please enter a valid Instagram URL.');
       return;
     }
 
@@ -93,20 +93,20 @@ export const Home = () => {
       }
 
       if (res.success && res.data) {
-        // Display new result FIRST
+        // Display new result FIRST (supports both video and image)
         setVideo(res.data);
         // Clear input ONLY after successful fetch
         setUrl('');
       } else {
         setVideo(null);
-        setError(res.error || res.message || 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.');
+        setError(res.error || res.message || 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.');
       }
     } catch (err) {
       if (currentRequestId !== searchRequestIdRef.current) {
         return;
       }
       setVideo(null);
-      setError(err.message || 'Unable to retrieve video stream. Please verify that the Instagram post or reel is public.');
+      setError(err.message || 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.');
     } finally {
       if (currentRequestId === searchRequestIdRef.current) {
         setLoading(false);
@@ -114,13 +114,38 @@ export const Home = () => {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (customTargetUrl = false, customItemIndex = null) => {
     if (downloading || downloadState === 'DOWNLOAD_STARTED') return;
     
-    const targetUrl = video?.sourceUrl || video?.streamUrl || url.trim();
+    let targetUrl = (typeof customTargetUrl === 'string' && customTargetUrl) ? customTargetUrl : (video?.sourceUrl || video?.streamUrl || url.trim());
     if (!targetUrl) return;
 
-    const sourceUrlCheck = video?.sourceUrl || targetUrl;
+    // Unwrap proxy stream URLs to get the underlying raw media URL
+    if (targetUrl.includes('/api/video/stream?url=')) {
+      try {
+        const dummyBase = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+        const parsedUrl = new URL(targetUrl, dummyBase);
+        const queryUrl = parsedUrl.searchParams.get('url');
+        if (queryUrl) {
+          targetUrl = queryUrl;
+        }
+      } catch (e) {}
+    }
+
+    const itemsList = video?.mediaItems || video?.items;
+    let isImg = video?.mediaType === 'image' || video?.isVideo === false || targetUrl.match(/\.(jpg|jpeg|png|webp|gif)/i);
+    
+    if (itemsList && typeof customItemIndex === 'number' && itemsList[customItemIndex]) {
+      const selectedItem = itemsList[customItemIndex];
+      isImg = selectedItem.mediaType === 'image' || selectedItem.isVideo === false;
+    }
+
+    const ext = isImg ? '.jpg' : '.mp4';
+    const itemTag = typeof customItemIndex === 'number' ? `_${customItemIndex + 1}` : '';
+    const defaultFilename = isImg ? `downloaded_image${itemTag}${ext}` : `downloaded_video${itemTag}${ext}`;
+    const defaultLabel = isImg ? `Instagram Image${itemTag}` : `Instagram Video${itemTag}`;
+
+    const sourceUrlCheck = targetUrl || video?.sourceUrl;
     const cleanId = storageService.normalizeUrl(sourceUrlCheck);
 
     setError(null);
@@ -131,7 +156,8 @@ export const Home = () => {
     const userSettings = storageService.getSettings();
 
     try {
-      const filenameHint = video?.title ? `${video.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.mp4` : 'downloaded_video.mp4';
+      const titlePrefix = video?.title ? video.title.replace(/[^a-zA-Z0-9_-]/g, '_') : (isImg ? 'Instagram_Image' : 'Instagram_Video');
+      const filenameHint = `${titlePrefix}${itemTag}${ext}`;
       
       // 1. DOWNLOAD FIRST: Wait for actual download stream completion
       const result = await videoService.downloadStream(targetUrl, filenameHint);
@@ -168,8 +194,8 @@ export const Home = () => {
         // 4. HISTORY LOGIC: Only save if user is AUTHENTICATED
         if (user && user?.id && userSettings.autoSaveHistory !== false) {
           const displayTitle = targetUrl 
-            ? `Instagram Video (${targetUrl})` 
-            : (video?.title || 'Instagram Video');
+            ? `${defaultLabel} (${targetUrl})` 
+            : (video?.title || defaultLabel);
 
           const historyPayload = {
             id: Date.now().toString(),
@@ -200,7 +226,7 @@ export const Home = () => {
       }
     } catch (err) {
       setDownloadState('DOWNLOAD_FAILED');
-      const errMsg = err.message || 'Unable to download the video. Please try again.';
+      const errMsg = err.message || 'Unable to download the file. Please try again.';
       setError(errMsg);
 
       // Show Download Failed notification if enabled
@@ -208,7 +234,7 @@ export const Home = () => {
         showToast({
           type: 'error',
           title: '✕ Download Failed',
-          message: 'Unable to download the video. Please try again.'
+          message: 'Unable to download the file. Please try again.'
         });
       }
     } finally {

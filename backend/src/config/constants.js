@@ -14,6 +14,7 @@ export const ALLOWED_DOMAINS = [
   'instagram.com',
   'www.instagram.com',
   'cdninstagram.com',
+  'fbcdn.net',
   'instagr.am',
   'sample-videos.com',
   'commondatastorage.googleapis.com',
