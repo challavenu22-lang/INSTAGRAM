@@ -785,10 +785,10 @@ export const History = () => {
               Guest Mode (No History Saved)
             </h3>
             <p className="text-xs sm:text-sm theme-text-secondary leading-relaxed">
-              You are currently using Video Downloader as a guest. Downloads and searches are completely anonymous and never stored.
+              You’re using Video Downloader as a guest. Your downloads and searches are never saved.
             </p>
             <p className="text-xs sm:text-sm text-slate-400 pt-1">
-              Sign in with your Google account to automatically save your downloads and access them across all your devices.
+              Sign in with Google to save your download history and access it across all your devices.
             </p>
           </div>
 
