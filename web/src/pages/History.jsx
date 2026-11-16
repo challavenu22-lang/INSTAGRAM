@@ -20,7 +20,8 @@ import {
   RotateCcw,
   Loader2,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { historyService } from '../services/historyService';
@@ -796,10 +797,10 @@ export const History = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isSigningIn}
-              className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-sm shadow-xl hover:shadow-2xl transition-all cursor-pointer active:scale-95 border border-slate-200"
+              className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-xl hover:shadow-2xl transition-all cursor-pointer active:scale-95 border border-blue-400/30"
             >
-              <GoogleIcon className="w-5 h-5" />
-              <span>{isSigningIn ? 'Connecting to Google...' : 'Continue with Google'}</span>
+              <User className="w-4 h-4 text-white" />
+              <span>{isSigningIn ? 'Logging in...' : 'Login'}</span>
             </button>
           </div>
         </div>

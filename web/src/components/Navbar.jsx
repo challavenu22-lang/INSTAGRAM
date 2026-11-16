@@ -175,16 +175,11 @@ export const Navbar = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isSigningIn}
-              className="flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95 border border-slate-200"
-              title="Continue with Google"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium text-xs sm:text-sm shadow-md transition-all cursor-pointer focus:outline-none"
+              title="Login"
             >
-              <GoogleIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                {isSigningIn ? 'Signing In...' : 'Continue with Google'}
-              </span>
-              <span className="sm:hidden">
-                {isSigningIn ? '...' : 'Sign In'}
-              </span>
+              <User className="w-4 h-4 text-white" />
+              <span>{isSigningIn ? 'Logging in...' : 'Login'}</span>
             </button>
           ) : (
             <div 
@@ -196,6 +191,7 @@ export const Navbar = () => {
                   <img 
                     src={user.picture} 
                     alt={displayedUserName} 
+                    referrerPolicy="no-referrer"
                     className="w-6 h-6 rounded-full object-cover border border-brand-500/40 shrink-0 select-none" 
                   />
                 ) : (
@@ -262,6 +258,7 @@ export const Navbar = () => {
                         <img 
                           src={user.picture} 
                           alt={displayedUserName} 
+                          referrerPolicy="no-referrer"
                           className="w-5 h-5 rounded-full object-cover border border-brand-500/40 shrink-0 select-none" 
                         />
                       ) : (
@@ -361,15 +358,15 @@ export const Navbar = () => {
                       <span className="whitespace-nowrap">History</span>
                     </Link>
 
-                    {/* Google Login Option for Guests */}
+                    {/* Login Option for Guests */}
                     <div className="border-t border-white/20 pt-1 mt-0.5">
                       <button
                         onClick={handleGoogleSignIn}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
                         role="menuitem"
                       >
-                        <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="whitespace-nowrap">Continue with Google</span>
+                        <User className="w-3.5 h-3.5 shrink-0 text-blue-400" />
+                        <span className="whitespace-nowrap">Login</span>
                       </button>
                     </div>
                   </div>

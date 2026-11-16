@@ -1,16 +1,16 @@
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  signOut,
   onAuthStateChanged,
   browserLocalPersistence,
   setPersistence
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Client Firebase configuration from environment variables
 const firebaseConfig = {
   apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || '').trim(),
   authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
@@ -20,12 +20,10 @@ const firebaseConfig = {
   appId: (import.meta.env.VITE_FIREBASE_APP_ID || '').trim()
 };
 
-/**
- * Checks whether valid Firebase credentials have been configured
- */
 export const isFirebaseConfigured = () => {
   return Boolean(
-    firebaseConfig.apiKey && 
+    firebaseConfig.apiKey &&
+    firebaseConfig.authDomain &&
     firebaseConfig.projectId
   );
 };
@@ -35,10 +33,12 @@ let auth = null;
 let db = null;
 let googleProvider = null;
 
-// Only initialize Firebase when configuration is provided to prevent crashes in Guest Mode
 if (isFirebaseConfigured()) {
   try {
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    app = getApps().length > 0
+      ? getApp()
+      : initializeApp(firebaseConfig);
+
     auth = getAuth(app);
     db = getFirestore(app);
 
@@ -47,11 +47,12 @@ if (isFirebaseConfigured()) {
       prompt: 'select_account'
     });
 
-    try {
-      setPersistence(auth, browserLocalPersistence).catch(() => {});
-    } catch (e) {}
-  } catch (err) {
-    console.warn('Firebase initialization failed (running in Guest Mode):', err);
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.error('Firebase persistence error:', error);
+    });
+
+  } catch (error) {
+    console.error('Firebase initialization failed:', error);
     app = null;
     auth = null;
     db = null;
@@ -61,41 +62,31 @@ if (isFirebaseConfigured()) {
 
 export { app, auth, db };
 
-/**
- * Sign in using Firebase Google Authentication popup
- */
+// Google Sign-In using full-page redirect
 export const signInWithGoogle = async () => {
   if (!isFirebaseConfigured() || !auth || !googleProvider) {
-    throw new Error(
-      'Firebase is not configured. Please add your Firebase credentials (VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID) in web/.env to use Google Sign-In.'
-    );
+    throw new Error('Firebase configuration is missing.');
   }
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
+
+  await setPersistence(auth, browserLocalPersistence);
+
+  await signInWithRedirect(auth, googleProvider);
 };
 
-/**
- * Sign out from Firebase Authentication
- */
+// Google Sign-Out
 export const signOutFromGoogle = async () => {
   if (auth) {
-    try {
-      await signOut(auth);
-    } catch (e) {
-      console.warn('Firebase signOut error:', e);
-    }
+    await signOut(auth);
   }
 };
 
-/**
- * Subscribe to Firebase Auth state changes
- */
+// Listen for authentication changes
 export const onAuthUserChanged = (callback) => {
-  if (!isFirebaseConfigured() || !auth) {
-    // If Firebase is not configured, inform listener that user is null (Guest Mode)
+  if (!auth) {
     callback(null);
     return () => {};
   }
+
   return onAuthStateChanged(auth, callback);
 };
 
