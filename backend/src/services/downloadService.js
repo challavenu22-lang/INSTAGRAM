@@ -11,6 +11,7 @@ import { sanitizeFilename } from '../utils/filenameSanitizer.js';
 import { MAX_FILE_SIZE_BYTES } from '../config/constants.js';
 import prisma from '../config/db.js';
 import { logger } from '../utils/logger.js';
+import { thumbnailService } from './thumbnailService.js';
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
@@ -139,16 +140,23 @@ export const downloadService = {
         };
       }
 
-      const isVid = mediaInfo.isVideo !== false && mediaInfo.mediaType === 'video';
-      const isCarousel = mediaInfo.mediaType === 'carousel' || (mediaInfo.items && mediaInfo.items.length > 1);
+      const isReelOrTv = match && (match[1] === 'reel' || match[1] === 'tv');
+      const isVid = (mediaInfo.isVideo !== false && mediaInfo.mediaType === 'video') || isReelOrTv;
+      const isCarousel = !isReelOrTv && (mediaInfo.mediaType === 'carousel' || (mediaInfo.items && mediaInfo.items.length > 1));
 
       title = isCarousel 
         ? `Instagram Carousel (${shortcode})`
         : (isVid ? `Instagram Video (${shortcode})` : `Instagram Image (${shortcode})`);
-      thumbnailUrl = mediaInfo.thumbnailUrl || mediaInfo.url || getCachedThumbnailUrl(shortcode) || null;
+
+      if (mediaInfo.thumbnailUrl && mediaInfo.thumbnailUrl.startsWith('http')) {
+        thumbnailService.saveThumbnailFromUrl(shortcode, mediaInfo.thumbnailUrl).catch(() => {});
+      }
+      thumbnailUrl = `/api/video/thumbnail/${shortcode}.jpg`;
 
       if (mediaInfo.url && mediaInfo.url.startsWith('/')) {
         streamUrl = mediaInfo.url;
+      } else if (mediaInfo.url && isVideoUrl(mediaInfo.url)) {
+        streamUrl = `/api/video/stream?url=${encodeURIComponent(mediaInfo.url)}`;
       } else {
         streamUrl = `/api/video/stream?url=${encodeURIComponent(targetUrl)}`;
       }
@@ -217,7 +225,7 @@ export const downloadService = {
     }
   },
 
-  downloadVideo: async (rawUrl, userId, res) => {
+  downloadVideo: async (rawUrl, userId, res, metadata = {}) => {
     const validation = validateVideoUrl(rawUrl);
     if (!validation.valid) {
       throw { status: 400, message: validation.reason };
@@ -256,14 +264,16 @@ export const downloadService = {
       fs.createReadStream(streamMediaUrl).pipe(res);
       if (userId) {
         try {
-          const match = targetUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
-          const shortcode = match ? match[2] : null;
-          const cachedThumb = shortcode ? getCachedThumbnailUrl(shortcode) : null;
+          const postUrl = metadata.postUrl || targetUrl;
+          const match = postUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
+          const shortcode = match ? match[2] : (thumbnailService.findMatchingThumbnail(metadata) || null);
+          const cachedThumb = metadata.thumbnailUrl || (shortcode ? `/api/video/thumbnail/${shortcode}.jpg` : null) || (shortcode ? getCachedThumbnailUrl(shortcode) : null);
+          const cleanTitle = metadata.title || (shortcode ? `Instagram Video (${shortcode})` : (isImageMedia ? 'Instagram Image' : 'Instagram Video'));
           const { historyService } = await import('./historyService.js');
           await historyService.createHistoryItem(userId, {
-            sourceUrl: targetUrl,
+            sourceUrl: postUrl,
             sourceDomain: hostname,
-            title: isImageMedia ? `Instagram Image (${targetUrl})` : `Instagram Video (${targetUrl})`,
+            title: cleanTitle,
             thumbnailUrl: cachedThumb || null,
             status: 'COMPLETED',
             fileSize: stat.size
@@ -319,14 +329,16 @@ export const downloadService = {
           logger.info('Media download completed successfully', { userId });
           if (userId) {
             try {
-              const match = targetUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
-              const shortcode = match ? match[2] : null;
-              const cachedThumb = shortcode ? getCachedThumbnailUrl(shortcode) : null;
+              const postUrl = metadata.postUrl || targetUrl;
+              const match = postUrl.match(/\/(reel|p|tv)\/([^\/]+)/);
+              const shortcode = match ? match[2] : (thumbnailService.findMatchingThumbnail(metadata) || null);
+              const cachedThumb = metadata.thumbnailUrl || (shortcode ? `/api/video/thumbnail/${shortcode}.jpg` : null) || (shortcode ? getCachedThumbnailUrl(shortcode) : null);
+              const cleanTitle = metadata.title || (shortcode ? `Instagram Video (${shortcode})` : (isImg ? 'Instagram Image' : 'Instagram Video'));
               const { historyService } = await import('./historyService.js');
               await historyService.createHistoryItem(userId, {
-                sourceUrl: targetUrl,
+                sourceUrl: postUrl,
                 sourceDomain: hostname,
-                title: isImg ? `Instagram Image (${targetUrl})` : `Instagram Video (${targetUrl})`,
+                title: cleanTitle,
                 thumbnailUrl: cachedThumb || null,
                 status: 'COMPLETED',
                 fileSize: contentLength > 0 ? contentLength : null
@@ -360,13 +372,16 @@ export const downloadService = {
     if (!raw) return null;
     let cleaned = raw
       .split('/u003C')[0]
+      .split('\\u003C')[0]
       .split('<')[0]
       .split('"')[0]
       .split("'")[0]
-      .replace(/\\u0026/g, '&')
-      .replace(/&amp;/g, '&')
-      .replace(/\\u00253D/gi, '=')
-      .replace(/\\u0025/g, '%')
+      .replace(/(\\|\/)u00253D/gi, '=')
+      .replace(/%253D/gi, '=')
+      .replace(/%3D/gi, '=')
+      .replace(/(\\|\/)u0026/gi, '&')
+      .replace(/&amp;/gi, '&')
+      .replace(/(\\|\/)u0025/gi, '%')
       .replace(/\\\/|\\/g, '/')
       .replace(/([^:]\/)\/+/g, '$1');
 
@@ -531,6 +546,7 @@ export const downloadService = {
         if (depth > 5) return Promise.resolve('');
         return new Promise((resolve) => {
           https.get(urlStr, {
+            family: 4,
             headers: {
               'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -572,6 +588,7 @@ export const downloadService = {
 
       if (extractedThumbnail) {
         setCachedThumbnailUrl(shortcode, extractedThumbnail);
+        thumbnailService.saveThumbnailFromUrl(shortcode, extractedThumbnail).catch(() => {});
       }
 
       const urls = cleanBody.match(/https?:\/\/[^\s"'<>]*(?:scontent|cdninstagram|fbcdn)[^\s"'<>]*?(?:\.mp4|\.m4a|\/o1\/v\/|\/v\/t[0-9]*\/|efg=|video_dashinit|audio_dashinit)[^\s"'<>]+/gi) || [];
@@ -606,13 +623,15 @@ export const downloadService = {
       if (progressiveUrl) {
         logger.info('[MEDIA EXTRACTION] Selected progressive audio+video URL', { shortcode, url: progressiveUrl.slice(0, 80) });
         setCachedMediaUrl(shortcode, progressiveUrl);
-        return {
+        const resObj = {
           url: progressiveUrl,
           isVideo: true,
           mediaType: 'video',
           contentType: 'video/mp4',
-          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+          thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
         };
+        setCachedMediaInfo(shortcode, resObj);
+        return resObj;
       }
 
       // Priority 2: Multiplex DASH video + DASH audio via FFmpeg
@@ -622,8 +641,8 @@ export const downloadService = {
         const tempAud = path.join('/tmp', `aud_${shortcode}.m4a`);
         const tempOut = path.join('/tmp', `merged_${shortcode}.mp4`);
 
-        await new Promise(r => https.get(dashVideoUrl, res => res.pipe(fs.createWriteStream(tempVid)).on('finish', r)));
-        await new Promise(r => https.get(audioUrl, res => res.pipe(fs.createWriteStream(tempAud)).on('finish', r)));
+        await new Promise(r => https.get(dashVideoUrl, { family: 4 }, res => res.pipe(fs.createWriteStream(tempVid)).on('finish', r)));
+        await new Promise(r => https.get(audioUrl, { family: 4 }, res => res.pipe(fs.createWriteStream(tempAud)).on('finish', r)));
 
         await new Promise((resolve, reject) => {
           exec(`"${ffmpegPath}" -y -i "${tempVid}" -i "${tempAud}" -c:v copy -c:a aac -movflags +faststart "${tempOut}"`, (err) => {
@@ -638,13 +657,15 @@ export const downloadService = {
 
         logger.info('[AUDIO-VIDEO MULTIPLEXING SUCCESS]', { shortcode, mergedFilePath: tempOut });
         setCachedMediaUrl(shortcode, tempOut);
-        return {
+        const resObj = {
           url: tempOut,
           isVideo: true,
           mediaType: 'video',
           contentType: 'video/mp4',
-          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+          thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
         };
+        setCachedMediaInfo(shortcode, resObj);
+        return resObj;
       }
 
       // Priority 3: Fall back to non-DASH URL or first extracted video URL
@@ -655,17 +676,21 @@ export const downloadService = {
 
       if (fallbackUrl && isVideoUrl(fallbackUrl)) {
         setCachedMediaUrl(shortcode, fallbackUrl);
-        return {
+        const resObj = {
           url: fallbackUrl,
           isVideo: true,
           mediaType: 'video',
           contentType: 'video/mp4',
-          thumbnailUrl: getCachedThumbnailUrl(shortcode) || null
+          thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
         };
+        setCachedMediaInfo(shortcode, resObj);
+        return resObj;
       }
 
-      // Fallback: If no video is present, check for CAROUSEL or IMAGE
-      if (extractedThumbnail || cleanBody.length > 0) {
+      const isReelOrTvPost = match && (match[1] === 'reel' || match[1] === 'tv');
+
+      // Fallback: If not explicitly a reel/tv post, check for CAROUSEL or IMAGE
+      if (!isReelOrTvPost && (extractedThumbnail || cleanBody.length > 0)) {
         const cleanThumb = extractedThumbnail ? downloadService.cleanMediaUrl(extractedThumbnail) : null;
         
         // Collect carousel items from display_urls or distinct uncropped photo URLs
@@ -735,7 +760,7 @@ export const downloadService = {
             isVideo: false,
             mediaType: 'image',
             contentType: 'image/jpeg',
-            thumbnailUrl: cleanThumb
+            thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
           };
           setCachedMediaInfo(shortcode, resultObj);
           return resultObj;
@@ -747,6 +772,7 @@ export const downloadService = {
         const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
         const embedHtml = await new Promise((resolve) => {
           https.get(embedUrl, {
+            family: 4,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -772,14 +798,17 @@ export const downloadService = {
 
           if (videoSrcMatch && videoSrcMatch[1]) {
             const vUrl = downloadService.cleanMediaUrl(videoSrcMatch[1]);
-            const tUrl = imgSrcMatch ? downloadService.cleanMediaUrl(imgSrcMatch[1]) : null;
+            const tUrl = imgSrcMatch ? downloadService.cleanMediaUrl(imgSrcMatch[1]) : extractedThumbnail;
+            if (tUrl && tUrl.startsWith('http')) {
+              thumbnailService.saveThumbnailFromUrl(shortcode, tUrl).catch(() => {});
+            }
             setCachedMediaUrl(shortcode, vUrl);
             const resObj = {
               url: vUrl,
               isVideo: true,
               mediaType: 'video',
               contentType: 'video/mp4',
-              thumbnailUrl: tUrl
+              thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
             };
             setCachedMediaInfo(shortcode, resObj);
             return resObj;
@@ -788,13 +817,16 @@ export const downloadService = {
           if (imgSrcMatch && imgSrcMatch[1]) {
             const iUrl = downloadService.cleanMediaUrl(imgSrcMatch[1]);
             if (!iUrl.includes('profile_pic') && !iUrl.includes('s100x100')) {
+              if (iUrl.startsWith('http')) {
+                thumbnailService.saveThumbnailFromUrl(shortcode, iUrl).catch(() => {});
+              }
               setCachedMediaUrl(shortcode, iUrl);
               const resObj = {
                 url: iUrl,
                 isVideo: false,
                 mediaType: 'image',
                 contentType: 'image/jpeg',
-                thumbnailUrl: iUrl
+                thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
               };
               setCachedMediaInfo(shortcode, resObj);
               return resObj;
@@ -810,11 +842,16 @@ export const downloadService = {
       const puppeteerResult = await extractWithPuppeteer(targetUrl);
       if (puppeteerResult && puppeteerResult.url) {
         setCachedMediaUrl(shortcode, puppeteerResult.url);
-        if (puppeteerResult.thumbnailUrl) {
+        if (puppeteerResult.thumbnailUrl && puppeteerResult.thumbnailUrl.startsWith('http')) {
           setCachedThumbnailUrl(shortcode, puppeteerResult.thumbnailUrl);
+          thumbnailService.saveThumbnailFromUrl(shortcode, puppeteerResult.thumbnailUrl).catch(() => {});
         }
-        setCachedMediaInfo(shortcode, puppeteerResult);
-        return puppeteerResult;
+        const resObj = {
+          ...puppeteerResult,
+          thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
+        };
+        setCachedMediaInfo(shortcode, resObj);
+        return resObj;
       }
 
       return {
@@ -841,6 +878,47 @@ export const downloadService = {
     return info && info.isVideo ? info.url : null;
   },
 
+  serveThumbnail: async (shortcode, rawUrl, res) => {
+    const destPath = thumbnailService.getThumbnailFilePath(shortcode);
+
+    if (thumbnailService.hasThumbnail(shortcode)) {
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin'
+      });
+      return fs.createReadStream(destPath).pipe(res);
+    }
+
+    const targetUrl = rawUrl || (shortcode ? `https://www.instagram.com/reel/${shortcode}/` : null);
+    if (targetUrl) {
+      try {
+        const info = await downloadService.extractDirectMediaInfo(targetUrl);
+        const thumbUrl = (info.thumbnailUrl && info.thumbnailUrl.startsWith('http')) ? info.thumbnailUrl : getCachedThumbnailUrl(shortcode);
+        if (thumbUrl && thumbUrl.startsWith('http')) {
+          await thumbnailService.saveThumbnailFromUrl(shortcode, thumbUrl);
+        } else if (info.url && isVideoUrl(info.url)) {
+          await thumbnailService.extractThumbnailFromVideo(shortcode, info.url);
+        }
+      } catch (e) {
+        logger.warn('[SERVE THUMBNAIL ERROR]', { shortcode, error: e.message });
+      }
+    }
+
+    if (thumbnailService.hasThumbnail(shortcode)) {
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin'
+      });
+      return fs.createReadStream(destPath).pipe(res);
+    }
+
+    res.status(404).json({ success: false, error: 'Thumbnail not available' });
+  },
+
   streamVideoPlayer: async (rawUrl, res, clientHeaders = {}) => {
     const validation = validateVideoUrl(rawUrl);
     if (!validation.valid) {
@@ -854,10 +932,12 @@ export const downloadService = {
     let isImageMedia = isImageUrl(targetUrl);
 
     if (hostname.includes('instagram.com') || hostname.includes('instagr.am')) {
-      const mediaInfo = await downloadService.extractDirectMediaInfo(targetUrl);
-      if (mediaInfo && mediaInfo.url) {
-        streamMediaUrl = mediaInfo.url;
-        isImageMedia = mediaInfo.mediaType === 'image' || mediaInfo.isVideo === false;
+      if (!isVideoUrl(targetUrl) && !isImageUrl(targetUrl)) {
+        const mediaInfo = await downloadService.extractDirectMediaInfo(targetUrl);
+        if (mediaInfo && mediaInfo.url) {
+          streamMediaUrl = mediaInfo.url;
+          isImageMedia = mediaInfo.mediaType === 'image' || mediaInfo.isVideo === false;
+        }
       }
     }
 
@@ -935,6 +1015,7 @@ export const downloadService = {
 
       const req = client.get(streamMediaUrl, { 
         agent: streamMediaUrl.startsWith('https:') ? httpsAgent : undefined,
+        family: 4,
         timeout: 25000,
         headers: requestHeaders
       }, async (remoteRes) => {
@@ -959,6 +1040,8 @@ export const downloadService = {
                 'Content-Length': stat.size,
                 'Content-Type': 'video/mp4',
                 'Accept-Ranges': 'bytes',
+                'Access-Control-Allow-Origin': '*',
+                'Cross-Origin-Resource-Policy': 'cross-origin',
                 'Cache-Control': 'no-cache, no-store, must-revalidate'
               });
               return fs.createReadStream(samplePath).pipe(res);
@@ -977,6 +1060,9 @@ export const downloadService = {
           'Content-Type': contentType,
           'Accept-Ranges': 'bytes',
           'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Range, Content-Type, Accept',
+          'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
+          'Cross-Origin-Resource-Policy': 'cross-origin',
           'Cache-Control': 'public, max-age=3600'
         };
 

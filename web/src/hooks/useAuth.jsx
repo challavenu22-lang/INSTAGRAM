@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/authService';
+import { 
+  signInWithGoogle, 
+  signOutFromGoogle, 
+  onAuthUserChanged,
+  isFirebaseConfigured
+} from '../services/firebase';
 
 const AuthContext = createContext(null);
 
@@ -7,63 +12,78 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const res = await authService.getCurrentUser();
-      if (res.success && res.user) {
-        setUser(res.user);
-      } else {
-        setUser(null);
-        localStorage.removeItem('auth_token');
-      }
-    } catch (err) {
-      setUser(null);
-      localStorage.removeItem('auth_token');
-    } finally {
-      setLoading(false);
-    }
+  // Map Firebase Auth user object to standardized app user object
+  const mapFirebaseUser = (firebaseUser) => {
+    if (!firebaseUser) return null;
+    return {
+      id: firebaseUser.uid,
+      uid: firebaseUser.uid,
+      name: firebaseUser.displayName || 'Google User',
+      fullName: firebaseUser.displayName || 'Google User',
+      userName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      username: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      email: firebaseUser.email,
+      picture: firebaseUser.photoURL,
+      avatarUrl: firebaseUser.photoURL,
+      isGoogleUser: true
+    };
   };
 
   useEffect(() => {
-    fetchUser();
+    // Purge any legacy unauthenticated guest download history keys from localStorage
+    try {
+      localStorage.removeItem('app_download_history');
+      localStorage.removeItem('download_history');
+    } catch (e) {}
+
+    // Subscribe to Firebase Authentication state changes
+    const unsubscribe = onAuthUserChanged((firebaseUser) => {
+      if (firebaseUser) {
+        setUser(mapFirebaseUser(firebaseUser));
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
-  const register = async (fullName, userName, email, password) => {
-    const res = await authService.register(fullName, userName, email, password);
-    return res;
-  };
-
-  const login = async (identifier, password) => {
-    const res = await authService.login(identifier, password);
-    if (res && res.token) {
-      localStorage.setItem('auth_token', res.token);
-      if (res.user) {
-        setUser(res.user);
-      }
+  const loginWithGoogle = async () => {
+    try {
+      const firebaseUser = await signInWithGoogle();
+      const mapped = mapFirebaseUser(firebaseUser);
+      setUser(mapped);
+      return { success: true, user: mapped };
+    } catch (err) {
+      console.error('Google Sign-In failed:', err);
+      throw err;
     }
-    return res;
   };
 
   const logout = async () => {
     try {
-      await authService.logout();
-    } catch (e) {
-      // Ignore API error on logout
+      await signOutFromGoogle();
+    } catch (err) {
+      console.error('Firebase Sign-Out error:', err);
     } finally {
-      localStorage.removeItem('auth_token');
       setUser(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, register, login, logout, refreshUser: fetchUser }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        setUser, 
+        loading, 
+        loginWithGoogle, 
+        logout,
+        isConfigured: isFirebaseConfigured()
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

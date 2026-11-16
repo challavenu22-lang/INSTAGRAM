@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Clipboard, AlertCircle, CheckCircle2, Loader2, Link2, Sparkles, Download } from 'lucide-react';
 import { videoService } from '../services/videoService';
 import { isValidVideoUrl } from '../utils/validators';
@@ -9,11 +9,13 @@ import { VideoPreviewCard } from '../components/VideoPreviewCard';
 import { Modal } from '../components/Modal';
 import { storageService } from '../services/storageService';
 import { historyService } from '../services/historyService';
+import { firestoreHistoryService } from '../services/firestoreHistoryService';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 
 export const Home = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const { user } = useAuth();
   const [url, setUrl] = useState('');
@@ -27,14 +29,84 @@ export const Home = () => {
   const [sessionDownloadedUrls, setSessionDownloadedUrls] = useState(new Set());
   const searchRequestIdRef = useRef(0);
 
+  const resetHomePage = () => {
+    // 1. Clear session active player storage
+    try {
+      sessionStorage.removeItem('active_player_video');
+    } catch (e) { }
+
+    // 2. Invalidate any in-flight search requests
+    searchRequestIdRef.current++;
+
+    // 3. Stop and clear any active video or audio players
+    const mediaElements = document.querySelectorAll('video, audio');
+    mediaElements.forEach((el) => {
+      try {
+        el.pause();
+        el.currentTime = 0;
+        el.removeAttribute('src');
+        el.load();
+      } catch (e) { }
+    });
+
+    // 4. Reset all React state to initial empty values
+    setUrl('');
+    setVideo(null);
+    setLoading(false);
+    setDownloading(false);
+    setDownloadState('IDLE');
+    setError(null);
+    setSuccess(null);
+    setConfirmModalOpen(false);
+
+    // 5. Clean browser history state
+    if (window.history && window.history.replaceState) {
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) { }
+    }
+  };
+
+  // Listen for reset events fired by Home button / Navbar
   useEffect(() => {
-    if (location.state?.previewVideo) {
+    const handleResetEvent = () => {
+      resetHomePage();
+    };
+
+    window.addEventListener('app:reset-home', handleResetEvent);
+    return () => {
+      window.removeEventListener('app:reset-home', handleResetEvent);
+    };
+  }, []);
+
+  // Sync with router location state and session storage (handles History Open and page refresh)
+  useEffect(() => {
+    if (location.state?.reset) {
+      try {
+        sessionStorage.removeItem('active_player_video');
+      } catch (e) { }
+      resetHomePage();
+      navigate('/home', { replace: true, state: {} });
+    } else if (location.state?.previewVideo) {
       setVideo(location.state.previewVideo);
-      if (location.state?.initialUrl || location.state?.previewVideo?.sourceUrl) {
-        setUrl(location.state.initialUrl || location.state.previewVideo.sourceUrl);
-      }
+      // DO NOT display raw URL in the search input box
+      setUrl('');
       setError(null);
       setSuccess(null);
+      try {
+        sessionStorage.setItem('active_player_video', JSON.stringify(location.state.previewVideo));
+      } catch (e) { }
+    } else {
+      // Check if there is an active video in sessionStorage (supports page refresh without losing selected video!)
+      try {
+        const saved = sessionStorage.getItem('active_player_video');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && (parsed.streamUrl || parsed.sourceUrl)) {
+            setVideo(parsed);
+          }
+        }
+      } catch (e) { }
     }
   }, [location.state]);
 
@@ -97,6 +169,9 @@ export const Home = () => {
         setVideo(res.data);
         // Clear input ONLY after successful fetch
         setUrl('');
+        try {
+          sessionStorage.setItem('active_player_video', JSON.stringify(res.data));
+        } catch (e) { }
       } else {
         setVideo(null);
         setError(res.error || res.message || 'Unable to retrieve media stream. Please verify that the Instagram post or reel is public.');
@@ -116,8 +191,11 @@ export const Home = () => {
 
   const handleDownload = async (customTargetUrl = false, customItemIndex = null) => {
     if (downloading || downloadState === 'DOWNLOAD_STARTED') return;
-    
-    let targetUrl = (typeof customTargetUrl === 'string' && customTargetUrl) ? customTargetUrl : (video?.sourceUrl || video?.streamUrl || url.trim());
+
+    // Preserve original Instagram post / reel URL for proper history, shortcode and thumbnails
+    const originalPostUrl = video?.sourceUrl || (url && isValidVideoUrl(url) ? url.trim() : null);
+
+    let targetUrl = (typeof customTargetUrl === 'string' && customTargetUrl) ? customTargetUrl : (video?.directMediaUrl || video?.sourceUrl || video?.streamUrl || url.trim());
     if (!targetUrl) return;
 
     // Unwrap proxy stream URLs to get the underlying raw media URL
@@ -129,12 +207,12 @@ export const Home = () => {
         if (queryUrl) {
           targetUrl = queryUrl;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const itemsList = video?.mediaItems || video?.items;
     let isImg = video?.mediaType === 'image' || video?.isVideo === false || targetUrl.match(/\.(jpg|jpeg|png|webp|gif)/i);
-    
+
     if (itemsList && typeof customItemIndex === 'number' && itemsList[customItemIndex]) {
       const selectedItem = itemsList[customItemIndex];
       isImg = selectedItem.mediaType === 'image' || selectedItem.isVideo === false;
@@ -145,7 +223,12 @@ export const Home = () => {
     const defaultFilename = isImg ? `downloaded_image${itemTag}${ext}` : `downloaded_video${itemTag}${ext}`;
     const defaultLabel = isImg ? `Instagram Image${itemTag}` : `Instagram Video${itemTag}`;
 
-    const sourceUrlCheck = targetUrl || video?.sourceUrl;
+    const match = (originalPostUrl || targetUrl || '').match(/\/(reel|p|tv)\/([^\/?#]+)/i);
+    const shortcode = match ? match[2] : null;
+    const thumbUrl = (shortcode ? `/api/video/thumbnail/${shortcode}.jpg` : '') || video?.thumbnailUrl || '';
+    const displayTitle = (shortcode ? `Instagram Video (${shortcode})` : null) || (video?.title && !video.title.includes('http') ? video.title : null) || defaultLabel;
+
+    const sourceUrlCheck = originalPostUrl || targetUrl || video?.sourceUrl;
     const cleanId = storageService.normalizeUrl(sourceUrlCheck);
 
     setError(null);
@@ -158,9 +241,13 @@ export const Home = () => {
     try {
       const titlePrefix = video?.title ? video.title.replace(/[^a-zA-Z0-9_-]/g, '_') : (isImg ? 'Instagram_Image' : 'Instagram_Video');
       const filenameHint = `${titlePrefix}${itemTag}${ext}`;
-      
+
       // 1. DOWNLOAD FIRST: Wait for actual download stream completion
-      const result = await videoService.downloadStream(targetUrl, filenameHint);
+      const result = await videoService.downloadStream(targetUrl, filenameHint, {
+        postUrl: originalPostUrl || targetUrl,
+        thumbnailUrl: thumbUrl,
+        title: displayTitle
+      });
 
       if (result?.cancelled) {
         // User cancelled Save As dialog: reset state quietly without toast or history
@@ -191,35 +278,27 @@ export const Home = () => {
           });
         }
 
-        // 4. HISTORY LOGIC: Only save if user is AUTHENTICATED
-        if (user && user?.id && userSettings.autoSaveHistory !== false) {
-          const displayTitle = targetUrl 
-            ? `${defaultLabel} (${targetUrl})` 
-            : (video?.title || defaultLabel);
-
+        // 4. HISTORY LOGIC: Only save download history for authenticated Google users!
+        // In Guest Mode (user == null), NEVER save download history to Firestore, localStorage or IndexedDB.
+        if (user?.uid && userSettings.autoSaveHistory !== false) {
           const historyPayload = {
             id: Date.now().toString(),
             title: displayTitle,
-            sourceUrl: targetUrl,
-            thumbnailUrl: video?.thumbnailUrl || '',
+            sourceUrl: originalPostUrl || targetUrl,
+            thumbnailUrl: thumbUrl,
             status: 'Completed',
             downloadedAt: new Date().toISOString()
           };
 
-          // Save to user-scoped local storage
-          storageService.addHistoryItem(historyPayload, user.id);
-
-          // Save to backend database for authenticated user if connected
+          // Save to user's private Firebase Firestore collection under their UID
           try {
-            await historyService.addHistoryItem({
-              title: historyPayload.title,
-              sourceUrl: historyPayload.sourceUrl,
-              thumbnailUrl: historyPayload.thumbnailUrl,
-              status: 'COMPLETED'
-            });
+            await firestoreHistoryService.saveHistoryItem(user.uid, historyPayload);
           } catch (e) {
-            // Ignore backend API error
+            console.error('Error saving history to Firestore:', e);
           }
+
+          // Cache locally under the user's private UID key
+          storageService.addHistoryItem(historyPayload, user.uid);
         }
       } else {
         throw new Error('Download process did not complete.');
@@ -293,8 +372,21 @@ export const Home = () => {
               {url && (
                 <button
                   type="button"
-                  onClick={() => { setUrl(''); setError(null); setSuccess(null); }}
-                  className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 btn-secondary !px-3 !py-1 text-xs font-semibold !rounded-lg shadow-md flex items-center justify-center z-10 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                  onClick={() => {
+                    setUrl('');
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2
+    !bg-red-500/15 !backdrop-blur-md
+    !border !border-red-400/40
+    !text-red-400 hover:!bg-red-500/25
+    hover:!border-red-400/70 hover:!text-red-300
+    !px-3 !py-1 text-xs font-semibold
+    !rounded-lg shadow-md
+    flex items-center justify-center z-10
+    cursor-pointer hover:scale-105 active:scale-95
+    transition-all"
                   title="Clear input"
                 >
                   <span>Clear</span>
@@ -343,12 +435,27 @@ export const Home = () => {
           )}
         </div>
 
+        {/* Loading Indicator while retrieving video information */}
+        {loading && (
+          <div className="w-full max-w-3xl mx-auto mt-8 rounded-3xl glass-panel p-8 sm:p-12 shadow-2xl flex flex-col items-center justify-center space-y-3.5 animate-in fade-in duration-200">
+            <Loader2 className="w-10 h-10 text-brand-400 animate-spin" />
+            <div className="text-center space-y-1">
+              <h3 className="text-sm sm:text-base font-bold theme-text-primary">
+                Retrieving Video Information...
+              </h3>
+              <p className="text-xs theme-text-secondary">
+                Fetching video stream, metadata, and thumbnail preview
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Video Preview Section */}
-        {video && (
-          <VideoPreviewCard 
+        {video && !loading && (
+          <VideoPreviewCard
             key={video.sourceUrl || video.streamUrl || video.title}
-            video={video} 
-            onDownload={handleDownload} 
+            video={video}
+            onDownload={handleDownload}
             downloading={downloading}
           />
         )}
@@ -366,6 +473,7 @@ export const Home = () => {
               🔐 <strong>Secure & Personalized:</strong> Log in to save your download history securely and access it anytime from your account.
             </p>
           </div>
+
         </div>
       </div>
     </div>

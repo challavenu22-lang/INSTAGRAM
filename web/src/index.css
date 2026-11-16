@@ -713,6 +713,85 @@ html.light-theme .history-guest-avatar svg {
   stroke: #000000 !important;
 }
 
+/* Custom styling for video player volume slider (white line, white progress, white circular handle) */
+.volume-slider {
+  accent-color: #ffffff !important;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  margin-top: -4px;
+}
+
+.volume-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.volume-slider::-moz-range-progress {
+  background: #ffffff !important;
+  border-radius: 9999px;
+}
+
+/* Custom styling for video seek bar (red progress, red handle) */
+.video-seek-slider {
+  accent-color: #dc2626 !important;
+}
+
+.video-seek-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+}
+
+.video-seek-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #dc2626 !important;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin-top: -4px;
+}
+
+.video-seek-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #dc2626 !important;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+
 
 
 

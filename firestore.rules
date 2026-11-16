@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User download history collection:
+    // Only the authenticated owner (matching request.auth.uid) can access or modify their download history.
+    // Unauthenticated (guest) users are denied all read and write access.
+    match /users/{userId}/history/{historyId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

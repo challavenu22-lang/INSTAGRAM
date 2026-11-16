@@ -5,7 +5,7 @@ import { folderStorageService } from './folderStorageService';
 export const videoService = {
   search: (url) => api.post('/video/search', { url }),
   
-  downloadStream: async (url, filenameHint = 'video.mp4') => {
+  downloadStream: async (url, filenameHint = 'video.mp4', metadata = {}) => {
     const userSettings = storageService.getSettings();
     let saveFileHandle = null;
 
@@ -49,7 +49,12 @@ export const videoService = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ 
+        url,
+        postUrl: metadata.postUrl,
+        thumbnailUrl: metadata.thumbnailUrl,
+        title: metadata.title
+      })
     });
 
     if (!response.ok) {

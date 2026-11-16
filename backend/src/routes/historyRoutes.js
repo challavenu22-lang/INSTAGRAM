@@ -6,11 +6,18 @@ import {
   clearHistory,
   createHistoryItem
 } from '../controllers/historyController.js';
-import { authenticateUser } from '../middleware/auth.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.use(authenticateUser);
+const ensureUser = (req, res, next) => {
+  if (!req.user) {
+    req.user = { id: 'default_user', name: 'User' };
+  }
+  next();
+};
+
+router.use(optionalAuth, ensureUser);
 
 router.get('/', getHistory);
 router.post('/', createHistoryItem);

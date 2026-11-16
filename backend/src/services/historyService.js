@@ -1,6 +1,7 @@
 import prisma from '../config/db.js';
 import { persistentAccountService } from './persistentAccountService.js';
 import { normalizeVideoUrl } from '../utils/urlNormalizer.js';
+import { thumbnailService } from './thumbnailService.js';
 
 export const historyService = {
   getUserHistory: async (userId, page = 1, limit = 20) => {
@@ -73,8 +74,56 @@ export const historyService = {
     const paginatedItems = uniqueItems.slice(skip, skip + take);
     const totalPages = Math.ceil(total / take) || 1;
 
+    const enhancedItems = paginatedItems.map(item => {
+      let shortcode = null;
+      const match = (item.sourceUrl || item.normalizedUrl || '').match(/\/(reel|p|tv)\/([^\/?#]+)/i);
+      if (match) shortcode = match[2];
+
+      let reliableThumbnail = item.thumbnailUrl;
+
+      if (!shortcode && item.thumbnailUrl) {
+        const thumbMatch = item.thumbnailUrl.match(/\/thumbnail\/([^\/.]+)\.jpg/i);
+        if (thumbMatch) shortcode = thumbMatch[1];
+      }
+
+      if (!shortcode && (!reliableThumbnail || reliableThumbnail.includes('cdninstagram.com'))) {
+        shortcode = thumbnailService.findMatchingThumbnail(item);
+      }
+
+      if (shortcode) {
+        reliableThumbnail = `/api/video/thumbnail/${shortcode}.jpg`;
+        if (!thumbnailService.hasThumbnail(shortcode)) {
+          if (item.thumbnailUrl && item.thumbnailUrl.startsWith('http') && !item.thumbnailUrl.includes('example.com')) {
+            thumbnailService.saveThumbnailFromUrl(shortcode, item.thumbnailUrl).catch(() => {});
+          }
+        }
+      } else if (item.id) {
+        const idCode = item.id.replace(/-/g, '').slice(0, 16);
+        if (thumbnailService.hasThumbnail(idCode)) {
+          reliableThumbnail = `/api/video/thumbnail/${idCode}.jpg`;
+        } else if (item.sourceUrl && (item.sourceUrl.includes('.jpg') || item.sourceUrl.includes('.png') || item.sourceUrl.includes('.webp'))) {
+          thumbnailService.saveThumbnailFromUrl(idCode, item.sourceUrl).catch(() => {});
+          reliableThumbnail = `/api/video/thumbnail/${idCode}.jpg`;
+        }
+      }
+
+      let cleanTitle = item.title;
+      if (shortcode && (!cleanTitle || cleanTitle.includes('http://') || cleanTitle.includes('https://'))) {
+        cleanTitle = `Instagram Video (${shortcode})`;
+      }
+
+      return {
+        ...item,
+        title: cleanTitle || 'Instagram Video',
+        thumbnailUrl: reliableThumbnail,
+        sourceUrl: shortcode && (!item.sourceUrl || item.sourceUrl.includes('fbcdn.net')) ? `https://www.instagram.com/reel/${shortcode}/` : item.sourceUrl,
+        isVideo: true,
+        mediaType: 'video'
+      };
+    });
+
     return {
-      items: paginatedItems,
+      items: enhancedItems,
       pagination: {
         total,
         page: pageNum,
@@ -135,6 +184,20 @@ export const historyService = {
   },
 
   createHistoryItem: async (userId, data) => {
+    try {
+      const userExists = await prisma.user.findUnique({ where: { id: userId } });
+      if (!userExists) {
+        await prisma.user.create({
+          data: {
+            id: userId,
+            email: `${userId}@local.host`,
+            name: 'Local User',
+            emailVerified: true
+          }
+        });
+      }
+    } catch (e) {}
+
     const rawUrl = data.sourceUrl || data.url || '';
     const normalizedUrl = normalizeVideoUrl(rawUrl);
     const sourceDomain = data.sourceDomain || 'instagram.com';
@@ -142,6 +205,31 @@ export const historyService = {
     const thumbnailUrl = data.thumbnailUrl || null;
     const status = data.status || 'COMPLETED';
     const fileSize = data.fileSize ? parseInt(data.fileSize, 10) : null;
+
+    let reliableThumbnail = thumbnailUrl;
+    let match = (rawUrl || normalizedUrl || '').match(/\/(reel|p|tv)\/([^\/?#]+)/i);
+    let shortcode = match ? match[2] : null;
+
+    if (!shortcode && thumbnailUrl) {
+      const thumbMatch = thumbnailUrl.match(/\/thumbnail\/([^\/.]+)\.jpg/i);
+      if (thumbMatch) shortcode = thumbMatch[1];
+    }
+
+    if (!shortcode) {
+      shortcode = thumbnailService.findMatchingThumbnail(data);
+    }
+
+    if (shortcode) {
+      if (thumbnailUrl && thumbnailUrl.startsWith('http')) {
+        thumbnailService.saveThumbnailFromUrl(shortcode, thumbnailUrl).catch(() => {});
+      }
+      reliableThumbnail = `/api/video/thumbnail/${shortcode}.jpg`;
+    }
+
+    let cleanTitle = title;
+    if (shortcode && (!cleanTitle || cleanTitle.includes('http://') || cleanTitle.includes('https://'))) {
+      cleanTitle = `Instagram Video (${shortcode})`;
+    }
 
     // Check if record already exists for this (userId + normalizedUrl)
     const allUserItems = await prisma.downloadHistory.findMany({
@@ -161,8 +249,8 @@ export const historyService = {
         data: {
           normalizedUrl,
           sourceUrl: rawUrl || existing.sourceUrl,
-          title: title || existing.title,
-          thumbnailUrl: thumbnailUrl || existing.thumbnailUrl,
+          title: cleanTitle || existing.title,
+          thumbnailUrl: reliableThumbnail || existing.thumbnailUrl,
           status,
           fileSize: fileSize || existing.fileSize,
           createdAt: new Date()
@@ -186,8 +274,8 @@ export const historyService = {
           normalizedUrl,
           sourceUrl: rawUrl,
           sourceDomain,
-          title,
-          thumbnailUrl,
+          title: cleanTitle,
+          thumbnailUrl: reliableThumbnail,
           status,
           fileSize,
           createdAt: new Date()

@@ -5,14 +5,34 @@ import {
   History, 
   LogOut, 
   MoreVertical,
-  User,
-  UserRound,
-  LogIn,
-  Download
+  User
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { Modal } from './Modal';
+
+// Clean Google SVG Icon
+export const GoogleIcon = ({ className = "w-4 h-4 shrink-0" }) => (
+  <svg className={className} viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
 
 // Solid filled house icon with door cutout
 const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" }) => (
@@ -31,9 +51,11 @@ const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" })
 );
 
 export const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, loginWithGoogle, logout } = useAuth();
+  const { showToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,6 +72,34 @@ export const Navbar = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  const handleGoogleSignIn = async () => {
+    setIsOpen(false);
+    setIsSigningIn(true);
+    try {
+      await loginWithGoogle();
+      if (showToast) {
+        showToast({
+          type: 'success',
+          title: '✓ Welcome!',
+          message: 'Signed in with Google. Your history will now be saved.'
+        });
+      }
+    } catch (err) {
+      if (err?.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+      if (showToast) {
+        showToast({
+          type: 'error',
+          title: 'Sign-in Failed',
+          message: err?.message || 'Unable to sign in with Google. Please check Firebase config in .env.'
+        });
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
   const handleLogoutClick = () => {
     setIsOpen(false);
     setLogoutModalOpen(true);
@@ -58,14 +108,47 @@ export const Navbar = () => {
   const confirmLogout = async () => {
     setLogoutModalOpen(false);
     await logout();
-    navigate('/login');
+    if (showToast) {
+      showToast({
+        type: 'info',
+        title: 'Logged Out',
+        message: 'Returned to Guest Mode. History saving is disabled.'
+      });
+    }
+    navigate('/home');
   };
 
   const isHomeActive = location.pathname === '/home' || location.pathname === '/';
   const isSettingsActive = location.pathname === '/settings';
   const isHistoryActive = location.pathname === '/history';
 
-  const isLoginPage = location.pathname === '/login';
+  const handleHomeNavigation = (e) => {
+    if (e && (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey)) {
+      e.preventDefault();
+    }
+    setIsOpen(false);
+
+    // Stop and clear any playing video/audio across the document
+    const mediaElements = document.querySelectorAll('video, audio');
+    mediaElements.forEach((el) => {
+      try {
+        el.pause();
+        el.currentTime = 0;
+        el.removeAttribute('src');
+        el.load();
+      } catch (err) {}
+    });
+
+    try {
+      sessionStorage.removeItem('active_player_video');
+    } catch (err) {}
+
+    // Notify Home page to completely reset state immediately
+    window.dispatchEvent(new CustomEvent('app:reset-home'));
+
+    // Navigate to /home with reset state flag and unique timestamp
+    navigate('/home', { state: { reset: true, timestamp: Date.now() } });
+  };
 
   const displayedUserName = user?.name || user?.fullName || user?.userName || user?.username || user?.email?.split('@')[0] || 'User';
   const firstLetter = displayedUserName.charAt(0).toUpperCase();
@@ -77,6 +160,7 @@ export const Navbar = () => {
         {/* Top-Left: Home Navigation Link (Cleaner Modern White House Icon + Text) */}
         <Link 
           to="/home" 
+          onClick={handleHomeNavigation}
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
@@ -86,11 +170,27 @@ export const Navbar = () => {
 
         {/* Top Right Header Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3">
-          <div 
-            className={`transition-all duration-200 ${isOpen ? 'blur-[5px] opacity-75 pointer-events-none select-none' : 'blur-none opacity-100 pointer-events-auto'}`}
-            aria-hidden={isOpen}
-          >
-            {user ? (
+          {!user ? (
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isSigningIn}
+              className="flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95 border border-slate-200"
+              title="Continue with Google"
+            >
+              <GoogleIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {isSigningIn ? 'Signing In...' : 'Continue with Google'}
+              </span>
+              <span className="sm:hidden">
+                {isSigningIn ? '...' : 'Sign In'}
+              </span>
+            </button>
+          ) : (
+            <div 
+              className={`transition-all duration-200 ${isOpen ? 'blur-[5px] opacity-75 pointer-events-none select-none' : 'blur-none opacity-100 pointer-events-auto'}`}
+              aria-hidden={isOpen}
+            >
               <div className="account-btn flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 theme-text-primary text-xs font-semibold shadow-sm">
                 {user?.picture ? (
                   <img 
@@ -107,29 +207,8 @@ export const Navbar = () => {
                   {displayedUserName}
                 </span>
               </div>
-            ) : (
-              <div className="relative z-50">
-                {isLoginPage ? (
-                  <button
-                    type="button"
-                    disabled
-                    onClick={(e) => e.preventDefault()}
-                    className="bg-blue-900 border border-blue-700/60 text-white font-medium rounded-xl transition-all duration-200 shadow-md shadow-blue-950/40 text-sm px-4 py-2 opacity-50 cursor-not-allowed pointer-events-auto select-none flex items-center gap-2"
-                    style={{ cursor: 'not-allowed' }}
-                    aria-disabled="true"
-                  >
-                    <UserRound size={20} strokeWidth={2} className="shrink-0 text-white" />
-                    <span>Sign In</span>
-                  </button>
-                ) : (
-                  <Link to="/login" className="bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 text-white font-medium rounded-xl transition-all duration-200 shadow-md shadow-blue-950/40 text-sm px-4 py-2 flex items-center gap-2">
-                    <UserRound size={20} strokeWidth={2} className="shrink-0 text-white" />
-                    <span>Sign In</span>
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Three-Dot Menu */}
           <div className="relative" ref={dropdownRef}>
@@ -197,7 +276,7 @@ export const Navbar = () => {
                     <div className="py-1 space-y-0.5">
                       <Link
                         to="/home"
-                        onClick={() => setIsOpen(false)}
+                        onClick={handleHomeNavigation}
                         className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
                           isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
                         }`}
@@ -245,75 +324,53 @@ export const Navbar = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1 py-1">
-                    <div className="py-0.5 space-y-0.5">
-                      <Link
-                        to="/home"
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                          isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                        }`}
+                  <div className="py-1 space-y-0.5">
+                    <Link
+                      to="/home"
+                      onClick={handleHomeNavigation}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                        isHomeActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                      }`}
+                      role="menuitem"
+                    >
+                      <HomeIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">Home</span>
+                    </Link>
+
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                        isSettingsActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                      }`}
+                      role="menuitem"
+                    >
+                      <Settings className="w-3.5 h-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">Settings</span>
+                    </Link>
+
+                    <Link
+                      to="/history"
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                        isHistoryActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
+                      }`}
+                      role="menuitem"
+                    >
+                      <History className="w-3.5 h-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">History</span>
+                    </Link>
+
+                    {/* Google Login Option for Guests */}
+                    <div className="border-t border-white/20 pt-1 mt-0.5">
+                      <button
+                        onClick={handleGoogleSignIn}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
                         role="menuitem"
                       >
-                        <HomeIcon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="whitespace-nowrap">Home</span>
-                      </Link>
-
-                      <Link
-                        to="/settings"
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                          isSettingsActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                        }`}
-                        role="menuitem"
-                      >
-                        <Settings className="w-3.5 h-3.5 shrink-0" />
-                        <span className="whitespace-nowrap">Settings</span>
-                      </Link>
-
-                      <Link
-                        to="/history"
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                          isHistoryActive ? 'text-brand-500 bg-brand-500/10 border-l-2 border-brand-500 font-semibold' : 'theme-text-primary hover:opacity-75'
-                        }`}
-                        role="menuitem"
-                      >
-                        <History className="w-3.5 h-3.5 shrink-0" />
-                        <span className="whitespace-nowrap">History</span>
-                      </Link>
-                    </div>
-
-                    <div className="border-t border-white/20 my-0.5 pt-1 space-y-1 pb-0.5">
-                      <div className="guest-account-header px-3 py-0.5 flex items-center gap-2 text-[11px] sm:text-xs font-semibold theme-text-secondary select-none">
-                        <User className="guest-account-icon w-3.5 h-3.5 text-brand-400 shrink-0" />
-                        <span className="guest-account-text">Guest Account</span>
-                      </div>
-                      <div className="px-3 flex justify-start">
-                        {isLoginPage ? (
-                          <button
-                            type="button"
-                            disabled
-                            onClick={(e) => e.preventDefault()}
-                            className="guest-login-btn px-3 py-1 text-xs font-semibold text-white bg-blue-900 border border-blue-700/60 rounded-lg opacity-50 cursor-not-allowed pointer-events-auto select-none inline-flex items-center gap-1.5"
-                            style={{ cursor: 'not-allowed' }}
-                            aria-disabled="true"
-                          >
-                            <LogIn size={15} strokeWidth={2} className="shrink-0 text-white rotate-90" />
-                            <span className="whitespace-nowrap">Login</span>
-                          </button>
-                        ) : (
-                          <Link
-                            to="/login"
-                            onClick={() => setIsOpen(false)}
-                            className="guest-login-btn px-3 py-1 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-800 active:bg-blue-950 border border-blue-700/60 rounded-lg transition-all duration-200 shadow-md shadow-blue-950/40 inline-flex items-center gap-1.5"
-                            role="menuitem"
-                          >
-                            <LogIn size={15} strokeWidth={2} className="shrink-0 text-white rotate-90" />
-                            <span className="whitespace-nowrap">Login</span>
-                          </Link>
-                        )}
-                      </div>
+                        <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Continue with Google</span>
+                      </button>
                     </div>
                   </div>
                 )}

@@ -1,9 +1,10 @@
 const SETTINGS_KEY = 'app_settings';
 
-// Remove legacy un-scoped global history key if present to prevent leakage
+// Purge any legacy unauthenticated guest download history keys
 try {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('download_history');
+    localStorage.removeItem('app_download_history');
   }
 } catch (e) {
   // Ignore
@@ -51,13 +52,16 @@ export const storageService = {
     }
   },
 
-  // --- USER SCOPED HISTORY ---
-  // --- USER SCOPED HISTORY ---
+  // --- USER & LOCAL SCOPED HISTORY ---
+  // STRICT GUEST MODE: If userId is null or unauthenticated, NEVER save or return download history.
   getHistory: (userId = null) => {
+    if (!userId) {
+      return [];
+    }
     try {
-      if (!userId) return []; // Guests HAVE NO HISTORY!
       const userKey = `download_history_${userId}`;
       const stored = localStorage.getItem(userKey);
+
       if (!stored) return [];
       const parsed = JSON.parse(stored);
       if (!Array.isArray(parsed)) return [];
@@ -67,6 +71,13 @@ export const storageService = {
       for (const item of parsed) {
         const normKey = storageService.normalizeUrl(item.sourceUrl || item.url || '');
         if (!normKey) continue;
+
+        const match = (item.sourceUrl || item.url || '').match(/\/(reel|p|tv)\/([^\/?#]+)/i);
+        const shortcode = match ? match[2] : null;
+        if (shortcode && (!item.thumbnailUrl || item.thumbnailUrl.includes('cdninstagram.com'))) {
+          item.thumbnailUrl = `/api/video/thumbnail/${shortcode}.jpg`;
+        }
+
         if (!grouped.has(normKey)) {
           grouped.set(normKey, item);
         } else {
@@ -89,9 +100,11 @@ export const storageService = {
   },
 
   addHistoryItem: (item, userId = null) => {
+    // Guest Mode: Do NOT save download history to localStorage or anywhere
+    if (!userId) {
+      return [];
+    }
     try {
-      if (!userId) return []; // Guests MUST NOT save history records!
-      
       const userKey = `download_history_${userId}`;
       const history = storageService.getHistory(userId);
       const rawUrl = item.sourceUrl || item.url || '';
@@ -99,11 +112,21 @@ export const storageService = {
       
       const existing = history.find(h => storageService.normalizeUrl(h.sourceUrl || h.url || '') === normKey);
 
+      const match = rawUrl.match(/\/(reel|p|tv)\/([^\/?#]+)/i);
+      const shortcode = match ? match[2] : null;
+      const reliableThumb = (shortcode && (!item.thumbnailUrl || item.thumbnailUrl.includes('cdninstagram.com')))
+        ? `/api/video/thumbnail/${shortcode}.jpg`
+        : (item.thumbnailUrl || (existing ? existing.thumbnailUrl : ''));
+
+      const cleanTitle = (shortcode && (!item.title || item.title.includes('http://') || item.title.includes('https://')))
+        ? `Instagram Video (${shortcode})`
+        : (item.title || (existing ? existing.title : 'Instagram Video'));
+
       const newItem = {
         id: existing ? existing.id : (item.id || Date.now().toString()),
-        title: item.title || (existing ? existing.title : 'Instagram Video'),
+        title: cleanTitle,
         sourceUrl: rawUrl || (existing ? existing.sourceUrl : ''),
-        thumbnailUrl: item.thumbnailUrl || (existing ? existing.thumbnailUrl : ''),
+        thumbnailUrl: reliableThumb,
         status: item.status || 'Completed',
         downloadedAt: new Date().toISOString(),
         fileSize: item.fileSize || (existing ? existing.fileSize : null),
@@ -121,9 +144,17 @@ export const storageService = {
     }
   },
 
-  deleteHistoryItem: (id, userId = null) => {
+  saveAllHistory: (items, userId = null) => {
+    if (!userId) return;
     try {
-      if (!userId) return [];
+      const userKey = `download_history_${userId}`;
+      localStorage.setItem(userKey, JSON.stringify(items || []));
+    } catch (e) {}
+  },
+
+  deleteHistoryItem: (id, userId = null) => {
+    if (!userId) return [];
+    try {
       const userKey = `download_history_${userId}`;
       const history = storageService.getHistory(userId);
       const updated = history.filter(item => String(item.id) !== String(id));
@@ -135,8 +166,8 @@ export const storageService = {
   },
 
   clearHistory: (userId = null) => {
+    if (!userId) return [];
     try {
-      if (!userId) return [];
       const userKey = `download_history_${userId}`;
       localStorage.setItem(userKey, JSON.stringify([]));
       return [];
@@ -168,15 +199,13 @@ export const storageService = {
     if (!cleanUrl) return false;
     const cleanId = storageService.normalizeUrl(cleanUrl);
 
-    // Check user history if user is logged in
-    if (userId) {
-      const history = storageService.getHistory(userId);
-      if (history.some(item => {
-        const itemUrl = item.sourceUrl || item.url || '';
-        return itemUrl.trim() === cleanUrl || (cleanId && storageService.normalizeUrl(itemUrl) === cleanId);
-      })) {
-        return true;
-      }
+    // Check history
+    const history = storageService.getHistory(userId);
+    if (history.some(item => {
+      const itemUrl = item.sourceUrl || item.url || '';
+      return itemUrl.trim() === cleanUrl || (cleanId && storageService.normalizeUrl(itemUrl) === cleanId);
+    })) {
+      return true;
     }
 
     // Also check global/guest downloaded URLs cache
