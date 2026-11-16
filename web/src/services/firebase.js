@@ -12,48 +12,62 @@ import { getFirestore } from 'firebase/firestore';
 
 // Client Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || ''
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || '').trim(),
+  authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
+  projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim(),
+  storageBucket: (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '').trim(),
+  messagingSenderId: (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '').trim(),
+  appId: (import.meta.env.VITE_FIREBASE_APP_ID || '').trim()
 };
 
+/**
+ * Checks whether valid Firebase credentials have been configured
+ */
 export const isFirebaseConfigured = () => {
   return Boolean(
     firebaseConfig.apiKey && 
-    firebaseConfig.authDomain && 
     firebaseConfig.projectId
   );
 };
 
-// Initialize or reuse existing Firebase App instance
-const app = getApps().length > 0 
-  ? getApp() 
-  : initializeApp(firebaseConfig);
+let app = null;
+let auth = null;
+let db = null;
+let googleProvider = null;
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Only initialize Firebase when configuration is provided to prevent crashes in Guest Mode
+if (isFirebaseConfigured()) {
+  try {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
 
-// Configure Google Provider
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
 
-// Ensure local persistence for persistent sessions
-try {
-  setPersistence(auth, browserLocalPersistence).catch(() => {});
-} catch (e) {}
+    try {
+      setPersistence(auth, browserLocalPersistence).catch(() => {});
+    } catch (e) {}
+  } catch (err) {
+    console.warn('Firebase initialization failed (running in Guest Mode):', err);
+    app = null;
+    auth = null;
+    db = null;
+    googleProvider = null;
+  }
+}
+
+export { app, auth, db };
 
 /**
  * Sign in using Firebase Google Authentication popup
  */
 export const signInWithGoogle = async () => {
-  if (!isFirebaseConfigured()) {
+  if (!isFirebaseConfigured() || !auth || !googleProvider) {
     throw new Error(
-      'Firebase credentials are not configured in .env. Please provide VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID.'
+      'Firebase is not configured. Please add your Firebase credentials (VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID) in web/.env to use Google Sign-In.'
     );
   }
   const result = await signInWithPopup(auth, googleProvider);
@@ -64,13 +78,24 @@ export const signInWithGoogle = async () => {
  * Sign out from Firebase Authentication
  */
 export const signOutFromGoogle = async () => {
-  await signOut(auth);
+  if (auth) {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Firebase signOut error:', e);
+    }
+  }
 };
 
 /**
  * Subscribe to Firebase Auth state changes
  */
 export const onAuthUserChanged = (callback) => {
+  if (!isFirebaseConfigured() || !auth) {
+    // If Firebase is not configured, inform listener that user is null (Guest Mode)
+    callback(null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 };
 

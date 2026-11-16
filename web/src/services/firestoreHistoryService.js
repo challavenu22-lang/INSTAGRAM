@@ -17,7 +17,7 @@ export const firestoreHistoryService = {
    * @returns {Promise<Array>} List of history items
    */
   getUserHistory: async (userId) => {
-    if (!userId || !isFirebaseConfigured()) {
+    if (!userId || !isFirebaseConfigured() || !db) {
       return [];
     }
 
@@ -55,7 +55,7 @@ export const firestoreHistoryService = {
    */
   saveHistoryItem: async (userId, item) => {
     // CRITICAL: Never save download history in Guest Mode (when userId is missing)
-    if (!userId || !isFirebaseConfigured() || !item) {
+    if (!userId || !isFirebaseConfigured() || !db || !item) {
       return null;
     }
 
@@ -86,7 +86,7 @@ export const firestoreHistoryService = {
    * @param {string} itemId - Item ID to delete
    */
   deleteHistoryItem: async (userId, itemId) => {
-    if (!userId || !isFirebaseConfigured() || !itemId) {
+    if (!userId || !isFirebaseConfigured() || !db || !itemId) {
       return;
     }
 
@@ -103,7 +103,7 @@ export const firestoreHistoryService = {
    * @param {string} userId - Firebase authenticated User UID
    */
   clearUserHistory: async (userId) => {
-    if (!userId || !isFirebaseConfigured()) {
+    if (!userId || !isFirebaseConfigured() || !db) {
       return;
     }
 
