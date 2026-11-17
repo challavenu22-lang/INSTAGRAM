@@ -4,8 +4,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  browserPopupRedirectResolver,
   signOut,
   onAuthStateChanged,
   browserLocalPersistence,
@@ -70,31 +69,20 @@ if (isFirebaseConfigured()) {
   }
 }
 
-export { app, auth, db, getRedirectResult };
+export { app, auth, db };
 
 /**
- * Google Sign-In with popup (clean UX, prevents redirect state loss & cookie partitioning)
- * Falls back to redirect if popup is blocked by the browser.
+ * Google Sign-In with popup.
+ * Invoked synchronously within the click handler to preserve the user gesture
+ * and prevent browser popup blockers from redirecting to broken handler endpoints.
  */
 export const signInWithGoogle = async () => {
   if (!isFirebaseConfigured() || !auth || !googleProvider) {
     throw new Error('Firebase configuration is missing or incomplete in environment variables.');
   }
 
-  await setPersistence(auth, browserLocalPersistence);
-
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error) {
-    // If popup is blocked by the browser, fallback to signInWithRedirect
-    if (error?.code === 'auth/popup-blocked') {
-      console.warn('Popup blocked, falling back to redirect sign-in...');
-      await signInWithRedirect(auth, googleProvider);
-      return null;
-    }
-    throw error;
-  }
+  const result = await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
+  return result.user;
 };
 
 /**

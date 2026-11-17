@@ -3,9 +3,7 @@ import {
   signInWithGoogle, 
   signOutFromGoogle, 
   onAuthUserChanged,
-  isFirebaseConfigured,
-  auth,
-  getRedirectResult
+  isFirebaseConfigured
 } from '../services/firebase';
 
 const AuthContext = createContext(null);
@@ -37,19 +35,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('app_download_history');
       localStorage.removeItem('download_history');
     } catch (e) {}
-
-    // Handle redirect sign-in results if returning from a full-page redirect flow
-    if (auth && typeof getRedirectResult === 'function') {
-      getRedirectResult(auth)
-        .then((result) => {
-          if (result?.user) {
-            setUser(mapFirebaseUser(result.user));
-          }
-        })
-        .catch((err) => {
-          console.warn('Firebase redirect result warning:', err);
-        });
-    }
 
     // Subscribe to Firebase Authentication state changes
     const unsubscribe = onAuthUserChanged((firebaseUser) => {
