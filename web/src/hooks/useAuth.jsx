@@ -3,7 +3,9 @@ import {
   signInWithGoogle, 
   signOutFromGoogle, 
   onAuthUserChanged,
-  isFirebaseConfigured
+  isFirebaseConfigured,
+  auth,
+  getRedirectResult
 } from '../services/firebase';
 
 const AuthContext = createContext(null);
@@ -36,6 +38,19 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('download_history');
     } catch (e) {}
 
+    // Handle redirect sign-in results if returning from a full-page redirect flow
+    if (auth && typeof getRedirectResult === 'function') {
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) {
+            setUser(mapFirebaseUser(result.user));
+          }
+        })
+        .catch((err) => {
+          console.warn('Firebase redirect result warning:', err);
+        });
+    }
+
     // Subscribe to Firebase Authentication state changes
     const unsubscribe = onAuthUserChanged((firebaseUser) => {
       if (firebaseUser) {
@@ -54,9 +69,12 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     try {
       const firebaseUser = await signInWithGoogle();
-      const mapped = mapFirebaseUser(firebaseUser);
-      setUser(mapped);
-      return { success: true, user: mapped };
+      if (firebaseUser) {
+        const mapped = mapFirebaseUser(firebaseUser);
+        setUser(mapped);
+        return { success: true, user: mapped };
+      }
+      return { success: true, pendingRedirect: true };
     } catch (err) {
       console.error('Google Sign-In failed:', err);
       throw err;

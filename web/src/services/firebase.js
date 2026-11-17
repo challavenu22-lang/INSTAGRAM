@@ -3,7 +3,9 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   browserLocalPersistence,
@@ -11,13 +13,21 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+/**
+ * Sanitizes environment variable strings by stripping surrounding whitespace and quotes
+ */
+const sanitizeEnv = (val) => {
+  if (!val) return '';
+  return String(val).trim().replace(/^["']|["']$/g, '').trim();
+};
+
 const firebaseConfig = {
-  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || '').trim(),
-  authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
-  projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim(),
-  storageBucket: (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '').trim(),
-  messagingSenderId: (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '').trim(),
-  appId: (import.meta.env.VITE_FIREBASE_APP_ID || '').trim()
+  apiKey: sanitizeEnv(import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain: sanitizeEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId: sanitizeEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket: sanitizeEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: sanitizeEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId: sanitizeEnv(import.meta.env.VITE_FIREBASE_APP_ID)
 };
 
 export const isFirebaseConfigured = () => {
@@ -60,27 +70,45 @@ if (isFirebaseConfigured()) {
   }
 }
 
-export { app, auth, db };
+export { app, auth, db, getRedirectResult };
 
-// Google Sign-In using full-page redirect
+/**
+ * Google Sign-In with popup (clean UX, prevents redirect state loss & cookie partitioning)
+ * Falls back to redirect if popup is blocked by the browser.
+ */
 export const signInWithGoogle = async () => {
   if (!isFirebaseConfigured() || !auth || !googleProvider) {
-    throw new Error('Firebase configuration is missing.');
+    throw new Error('Firebase configuration is missing or incomplete in environment variables.');
   }
 
   await setPersistence(auth, browserLocalPersistence);
 
-  await signInWithRedirect(auth, googleProvider);
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    // If popup is blocked by the browser, fallback to signInWithRedirect
+    if (error?.code === 'auth/popup-blocked') {
+      console.warn('Popup blocked, falling back to redirect sign-in...');
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw error;
+  }
 };
 
-// Google Sign-Out
+/**
+ * Google Sign-Out
+ */
 export const signOutFromGoogle = async () => {
   if (auth) {
     await signOut(auth);
   }
 };
 
-// Listen for authentication changes
+/**
+ * Listen for authentication changes
+ */
 export const onAuthUserChanged = (callback) => {
   if (!auth) {
     callback(null);
