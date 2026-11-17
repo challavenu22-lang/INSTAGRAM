@@ -91,6 +91,8 @@ export const Navbar = () => {
       let userFriendlyMsg = err?.message || 'Unable to sign in with Google. Please check Firebase config in .env.';
       if (err?.code === 'auth/api-key-not-valid' || err?.message?.includes('api-key-not-valid')) {
         userFriendlyMsg = 'Firebase API key is invalid. Please verify VITE_FIREBASE_API_KEY in web/.env.';
+      } else if (err?.code?.includes('requests-from-referer') || err?.message?.includes('requests-from-referer')) {
+        userFriendlyMsg = 'Google Cloud blocked localhost. In Google Cloud Console > Credentials, set Application Restrictions to None or add http://localhost:5173/*';
       } else if (err?.code === 'auth/unauthorized-domain') {
         userFriendlyMsg = 'This domain is not authorized in Firebase Console. Add it under Authentication > Settings > Authorized domains.';
       } else if (err?.code === 'auth/operation-not-allowed') {
