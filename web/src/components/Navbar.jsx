@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Settings, 
-  History, 
-  LogOut, 
+import {
+  Settings,
+  History,
+  LogOut,
   MoreVertical,
   User
 } from 'lucide-react';
@@ -36,16 +36,16 @@ export const GoogleIcon = ({ className = "w-4 h-4 shrink-0" }) => (
 
 // Solid filled house icon with door cutout
 const HomeIcon = ({ className = "w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="currentColor" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
     className={className}
   >
-    <path 
-      fillRule="evenodd" 
-      clipRule="evenodd" 
-      d="M12 3L2.5 10.5A1 1 0 0 0 3.2 12H4v8a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 20v-8h.8a1 1 0 0 0 .7-1.7L12 3zM10 21.5v-6.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v6.5h-4z" 
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 3L2.5 10.5A1 1 0 0 0 3.2 12H4v8a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 20v-8h.8a1 1 0 0 0 .7-1.7L12 3zM10 21.5v-6.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v6.5h-4z"
     />
   </svg>
 );
@@ -148,12 +148,12 @@ export const Navbar = () => {
         el.currentTime = 0;
         el.removeAttribute('src');
         el.load();
-      } catch (err) {}
+      } catch (err) { }
     });
 
     try {
       sessionStorage.removeItem('active_player_video');
-    } catch (err) {}
+    } catch (err) { }
 
     // Notify Home page to completely reset state immediately
     window.dispatchEvent(new CustomEvent('app:reset-home'));
@@ -168,10 +168,10 @@ export const Navbar = () => {
   return (
     <header className="sticky top-0 z-40 w-full glass-panel">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
-        
+
         {/* Top-Left: Home Navigation Link (Cleaner Modern White House Icon + Text) */}
-        <Link 
-          to="/home" 
+        <Link
+          to="/home"
           onClick={handleHomeNavigation}
           aria-label="Home"
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
@@ -184,13 +184,21 @@ export const Navbar = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
             /* Logged-In User Profile Info in Navbar (Completely unblurred & clear) */
-            <div className="account-btn flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs font-semibold shadow-sm select-none">
+            <div
+              style={{
+                filter: isOpen ? 'blur(8px)' : 'none',
+                opacity: isOpen ? 0.6 : 1,
+                pointerEvents: isOpen ? 'none' : 'auto',
+                transition: 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out'
+              }}
+              className="account-btn flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs font-semibold shadow-sm select-none"
+            >
               {user?.picture ? (
-                <img 
-                  src={user.picture} 
-                  alt={displayedUserName} 
+                <img
+                  src={user.picture}
+                  alt={displayedUserName}
                   referrerPolicy="no-referrer"
-                  className="w-6 h-6 rounded-full object-cover border border-blue-500/40 shrink-0 select-none" 
+                  className="w-6 h-6 rounded-full object-cover border border-blue-500/40 shrink-0 select-none"
                 />
               ) : (
                 <div className="w-6 h-6 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 uppercase select-none">
@@ -203,14 +211,23 @@ export const Navbar = () => {
             </div>
           ) : (
             /* Logged-Out State: Clearly Visible Login Button */
+            /* Logged-Out State: Login Button blurs when 3-dot menu is open */
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              disabled={isSigningIn}
+              disabled={isSigningIn || isOpen || isHistoryActive}
+              style={{
+                filter: (isOpen || isHistoryActive) ? 'blur(8px)' : 'none',
+                opacity: (isOpen || isHistoryActive) ? 0.6 : 1,
+                pointerEvents: (isOpen || isHistoryActive) ? 'none' : 'auto',
+                transition: 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out'
+              }}
               className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium text-xs sm:text-sm shadow-md transition-all cursor-pointer focus:outline-none"
               title="Login"
             >
-              <User className="w-4 h-4 text-white" />
+              <div className="w-5 h-5 rounded-full border border-white flex items-center justify-center shrink-0">
+                <User className="w-3 h-3 text-white" />
+              </div>
               <span>{isSigningIn ? 'Logging in...' : 'Login'}</span>
             </button>
           )}
@@ -236,7 +253,7 @@ export const Navbar = () => {
 
             {/* Backdrop for outside click / dismiss without blurring navbar items */}
             {isOpen && (
-              <div 
+              <div
                 className="fixed inset-0 z-40 bg-black/20 transition-opacity animate-in fade-in duration-150"
                 onClick={() => setIsOpen(false)}
                 aria-hidden="true"
@@ -245,12 +262,12 @@ export const Navbar = () => {
 
             {/* Dropdown Menu Container */}
             {isOpen && (
-              <div 
+              <div
                 className="absolute right-0 mt-2 w-52 sm:w-56 rounded-2xl shadow-2xl py-1 animate-in fade-in slide-in-from-top-2 duration-150 z-50 border border-slate-700/80 overflow-hidden shadow-black/80"
-                style={{ 
-                  backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                  backdropFilter: 'blur(12px)', 
-                  WebkitBackdropFilter: 'blur(12px)' 
+                style={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)'
                 }}
                 role="menu"
                 aria-orientation="vertical"
@@ -260,11 +277,11 @@ export const Navbar = () => {
                     {/* Profile picture and username at top of menu */}
                     <div className="px-3.5 py-2.5 flex items-center gap-2.5 border-b border-slate-700/60">
                       {user?.picture ? (
-                        <img 
-                          src={user.picture} 
-                          alt={displayedUserName} 
+                        <img
+                          src={user.picture}
+                          alt={displayedUserName}
                           referrerPolicy="no-referrer"
-                          className="w-7 h-7 rounded-full object-cover border border-blue-500/40 shrink-0 select-none" 
+                          className="w-7 h-7 rounded-full object-cover border border-blue-500/40 shrink-0 select-none"
                         />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 uppercase select-none">
@@ -284,11 +301,10 @@ export const Navbar = () => {
                       <Link
                         to="/home"
                         onClick={handleHomeNavigation}
-                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                          isHomeActive 
-                            ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                            : 'text-slate-200 hover:text-white hover:bg-white/5'
-                        }`}
+                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isHomeActive
+                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                          : 'text-slate-200 hover:text-white hover:bg-white/5'
+                          }`}
                         role="menuitem"
                       >
                         <HomeIcon className="w-4 h-4 shrink-0" />
@@ -298,11 +314,10 @@ export const Navbar = () => {
                       <Link
                         to="/settings"
                         onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                          isSettingsActive 
-                            ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                            : 'text-slate-200 hover:text-white hover:bg-white/5'
-                        }`}
+                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isSettingsActive
+                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                          : 'text-slate-200 hover:text-white hover:bg-white/5'
+                          }`}
                         role="menuitem"
                       >
                         <Settings className="w-4 h-4 shrink-0" />
@@ -312,11 +327,10 @@ export const Navbar = () => {
                       <Link
                         to="/history"
                         onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                          isHistoryActive 
-                            ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                            : 'text-slate-200 hover:text-white hover:bg-white/5'
-                        }`}
+                        className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isHistoryActive
+                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                          : 'text-slate-200 hover:text-white hover:bg-white/5'
+                          }`}
                         role="menuitem"
                       >
                         <History className="w-4 h-4 shrink-0" />
@@ -343,11 +357,10 @@ export const Navbar = () => {
                     <Link
                       to="/home"
                       onClick={handleHomeNavigation}
-                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                        isHomeActive 
-                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                          : 'text-slate-200 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isHomeActive
+                        ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                        : 'text-slate-200 hover:text-white hover:bg-white/5'
+                        }`}
                       role="menuitem"
                     >
                       <HomeIcon className="w-4 h-4 shrink-0" />
@@ -357,11 +370,10 @@ export const Navbar = () => {
                     <Link
                       to="/settings"
                       onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                        isSettingsActive 
-                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                          : 'text-slate-200 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isSettingsActive
+                        ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                        : 'text-slate-200 hover:text-white hover:bg-white/5'
+                        }`}
                       role="menuitem"
                     >
                       <Settings className="w-4 h-4 shrink-0" />
@@ -371,29 +383,33 @@ export const Navbar = () => {
                     <Link
                       to="/history"
                       onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                        isHistoryActive 
-                          ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold' 
-                          : 'text-slate-200 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${isHistoryActive
+                        ? 'text-blue-400 bg-blue-500/15 border-l-2 border-blue-500 font-semibold'
+                        : 'text-slate-200 hover:text-white hover:bg-white/5'
+                        }`}
                       role="menuitem"
                     >
                       <History className="w-4 h-4 shrink-0" />
                       <span>History</span>
                     </Link>
 
-                    <div className="border-t border-slate-700/60 pt-1 mt-1">
+
+                    <div className="border-t border-slate-700/60 px-3.5 py-2 mt-1">
                       <button
                         type="button"
                         onClick={handleGoogleSignIn}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-colors text-left cursor-pointer"
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium text-xs sm:text-sm shadow-md border border-blue-400/30 transition-all cursor-pointer"
                         role="menuitem"
                       >
-                        <User className="w-4 h-4 shrink-0 text-blue-400" />
-                        <span>Login</span>
+                        <div className="w-5 h-5 rounded-full border border-white flex items-center justify-center shrink-0">
+                          <User className="w-3 h-3 text-white" />
+                        </div>
+                        <span className="font-semibold text-white">Login</span>
                       </button>
                     </div>
+
                   </div>
+
                 )}
               </div>
             )}
@@ -427,6 +443,6 @@ export const Navbar = () => {
         </div>
       </Modal>
 
-    </header>
+    </header >
   );
 };

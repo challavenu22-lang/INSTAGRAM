@@ -21,7 +21,8 @@ import {
   Loader2,
   AlertCircle,
   ChevronRight,
-  User
+  User,
+  MapPin
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { historyService } from '../services/historyService';
@@ -777,9 +778,16 @@ export const History = () => {
 
       {!user ? (
         <div className="w-full max-w-lg mx-auto py-8 px-5 sm:py-10 sm:px-8 rounded-3xl glass-panel shadow-2xl flex flex-col items-center justify-center text-center space-y-4 border border-slate-700/60 my-4 animate-in fade-in duration-300">
-          <div className="w-14 h-14 rounded-2xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-brand-400 shadow-inner shrink-0">
-            <Clock className="w-7 h-7 text-brand-400 stroke-[2.2]" />
+
+
+
+          <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 gap-1">
+            <MapPin className="w-7 h-7 text-brand-400 stroke-[2.2]" />
+            <div className="w-6 h-[3px] bg-red-600 rounded-full" />
           </div>
+
+
+
           <div className="space-y-1.5 max-w-sm">
             <h3 className="text-lg sm:text-xl font-bold theme-text-primary">
               Guest Mode (No History Saved)
@@ -806,8 +814,10 @@ export const History = () => {
         </div>
       ) : history.length === 0 ? (
         <div className="w-[calc(100%-32px)] max-w-sm sm:max-w-md mx-auto py-5 px-4 sm:py-6 sm:px-6 rounded-2xl glass-panel shadow-lg flex flex-col items-center justify-center text-center space-y-2.5 my-1 box-border">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800/90 border border-slate-700/80 flex items-center justify-center mx-auto text-brand-400 shadow-inner shrink-0 p-0">
-            <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-brand-400 shrink-0 stroke-[2.25]" />
+
+          <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 gap-1">
+            <MapPin className="w-7 h-7 text-brand-400 stroke-[2.2]" />
+            <div className="w-6 h-[3px] bg-red-600 rounded-full" />
           </div>
           <div className="space-y-0.5 w-full">
             <h3 className="text-base sm:text-lg font-bold theme-text-primary">No Download History</h3>
