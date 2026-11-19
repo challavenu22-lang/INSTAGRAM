@@ -141,8 +141,8 @@ export const downloadService = {
       }
 
       const isReelOrTv = match && (match[1] === 'reel' || match[1] === 'tv');
-      const isVid = (mediaInfo.isVideo !== false && mediaInfo.mediaType === 'video') || isReelOrTv;
-      const isCarousel = !isReelOrTv && (mediaInfo.mediaType === 'carousel' || (mediaInfo.items && mediaInfo.items.length > 1));
+      const isCarousel = mediaInfo.mediaType === 'carousel' || (Boolean(mediaInfo.items) && mediaInfo.items.length > 1);
+      const isVid = !isCarousel && ((mediaInfo.isVideo !== false && mediaInfo.mediaType === 'video') || (isReelOrTv && mediaInfo.mediaType !== 'image'));
 
       title = isCarousel 
         ? `Instagram Carousel (${shortcode})`
@@ -433,6 +433,53 @@ export const downloadService = {
         }
       }
 
+            // Method 0A: High-precision carousel & media extractor via @bochilteam/scraper-instagram
+      try {
+        const { instagramdl } = await import("@bochilteam/scraper-instagram");
+        const dlResults = await instagramdl(targetUrl);
+        if (Array.isArray(dlResults) && dlResults.length > 0) {
+          const validResults = dlResults.filter(item => {
+            const u = (item.url || item.thumbnail || "").toLowerCase();
+            return !u.includes("profile_pic") && !u.includes("44884218_") && !u.includes("avatar") && !u.includes("silhouette") && !u.includes("null.jpg");
+          });
+
+          if (validResults.length > 0) {
+            const isMulti = validResults.length > 1;
+            const items = validResults.map((item, idx) => ({
+              index: idx + 1,
+              url: item.url,
+              isVideo: item.type === "video",
+              mediaType: item.type === "video" ? "video" : "image",
+              contentType: item.type === "video" ? "video/mp4" : "image/jpeg",
+              thumbnailUrl: item.thumbnail || item.url
+            }));
+
+            const firstVid = items.find(i => i.isVideo);
+            const primaryItem = firstVid || items[0];
+
+            setCachedMediaUrl(shortcode, primaryItem.url);
+            if (primaryItem.thumbnailUrl) {
+              setCachedThumbnailUrl(shortcode, primaryItem.thumbnailUrl);
+            }
+
+            const resObj = {
+              url: primaryItem.url,
+              isVideo: primaryItem.isVideo,
+              mediaType: isMulti ? "carousel" : (primaryItem.isVideo ? "video" : "image"),
+              contentType: primaryItem.contentType,
+              thumbnailUrl: primaryItem.thumbnailUrl,
+              items: isMulti ? items : null
+            };
+
+            setCachedMediaInfo(shortcode, resObj);
+            logger.info("[EXTRACTION] Successfully extracted media using instagramdl", { shortcode, count: items.length });
+            return resObj;
+          }
+        }
+      } catch (err) {
+        logger.warn("[EXTRACTION] instagramdl fallback", { error: err.message });
+      }
+
       // Method 0: RapidAPI Integration (if API key is present)
       if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY.trim()) {
         try {
@@ -527,14 +574,18 @@ export const downloadService = {
 
             setCachedMediaUrl(shortcode, selectedItem.url);
 
-            return {
-              url: selectedItem.url,
-              isVideo: selectedItem.isVideo,
-              mediaType: selectedItem.mediaType,
-              contentType: selectedItem.contentType,
-              thumbnailUrl: getCachedThumbnailUrl(shortcode) || (selectedItem.isVideo ? null : selectedItem.url),
-              items: items.length > 1 ? items : null
-            };
+            // Only return if it actually detected multiple carousel items or a real video
+            if (items.length > 1 || selectedItem.isVideo) {
+              return {
+                url: selectedItem.url,
+                isVideo: selectedItem.isVideo,
+                mediaType: selectedItem.mediaType,
+                contentType: selectedItem.contentType,
+                thumbnailUrl: getCachedThumbnailUrl(shortcode) || (selectedItem.isVideo ? null : selectedItem.url),
+                items: items.length > 1 ? items : null
+              };
+            }
+            logger.info("[EXTRACTION] instagram-url-direct returned single thumbnail; continuing to full carousel scrapers...");
           }
         }
       } catch (err) {
@@ -564,7 +615,9 @@ export const downloadService = {
         });
       };
 
-      const bodyReel = await httpGetBot(`https://www.instagram.com/reel/${shortcode}/`);
+      const isReelPost = match && (match[1] === "reel" || match[1] === "tv");
+      const postEndpoint = isReelPost ? "reel" : "p";
+      const bodyReel = await httpGetBot(`https://www.instagram.com/${postEndpoint}/${shortcode}/`);
       const cleanBody = (bodyReel || '').replace(/\\\/|\\/g, '/').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
 
       // Find uncropped full-resolution photo URLs (avoid cropped thumbnails like stp=c... or s150x150)
@@ -574,7 +627,7 @@ export const downloadService = {
         !u.includes('_s150x150') && 
         !u.includes('_s320x320') && 
         !u.includes('_s640x640') && 
-        !u.includes('profile_pic')
+        !u.includes('profile_pic') && !u.includes('44884218_') && !u.includes('avatar') && !u.includes('silhouette')
       );
 
       const displayUrlMatch = cleanBody.match(/"display_url"\s*:\s*"([^"]+)"/i) ||
@@ -690,7 +743,7 @@ export const downloadService = {
       const isReelOrTvPost = match && (match[1] === 'reel' || match[1] === 'tv');
 
       // Fallback: If not explicitly a reel/tv post, check for CAROUSEL or IMAGE
-      if (!isReelOrTvPost && (extractedThumbnail || cleanBody.length > 0)) {
+      if (extractedThumbnail || cleanBody.length > 0) {
         const cleanThumb = extractedThumbnail ? downloadService.cleanMediaUrl(extractedThumbnail) : null;
         
         // Collect carousel items from display_urls or distinct uncropped photo URLs
@@ -717,7 +770,7 @@ export const downloadService = {
             !u.includes('_s150x150') && 
             !u.includes('_s320x320') && 
             !u.includes('_s640x640') && 
-            !u.includes('profile_pic')
+            !u.includes('profile_pic') && !u.includes('44884218_') && !u.includes('avatar') && !u.includes('silhouette')
           );
 
           const seenAssets = new Set();
@@ -814,24 +867,34 @@ export const downloadService = {
             return resObj;
           }
 
-          if (imgSrcMatch && imgSrcMatch[1]) {
-            const iUrl = downloadService.cleanMediaUrl(imgSrcMatch[1]);
-            if (!iUrl.includes('profile_pic') && !iUrl.includes('s100x100')) {
-              if (iUrl.startsWith('http')) {
-                thumbnailService.saveThumbnailFromUrl(shortcode, iUrl).catch(() => {});
-              }
-              setCachedMediaUrl(shortcode, iUrl);
-              const resObj = {
-                url: iUrl,
-                isVideo: false,
-                mediaType: 'image',
-                contentType: 'image/jpeg',
-                thumbnailUrl: `/api/video/thumbnail/${shortcode}.jpg`
-              };
-              setCachedMediaInfo(shortcode, resObj);
-              return resObj;
-            }
+          // Check if embed contains multiple carousel display URLs
+          const embedDisplayUrls = Array.from(new Set(
+            Array.from(cleanEmbed.matchAll(/"display_url"\s*:\s*"([^"]+)"/gi))
+              .map(m => downloadService.cleanMediaUrl(m[1]))
+              .filter(u => u && !u.includes("profile_pic") && !u.includes("44884218_") && !u.includes("avatar"))
+          ));
+
+          if (embedDisplayUrls.length > 1) {
+            const carouselItems = embedDisplayUrls.map((u, idx) => ({
+              index: idx + 1,
+              url: u,
+              isVideo: false,
+              mediaType: "image",
+              contentType: "image/jpeg",
+              thumbnailUrl: u
+            }));
+            const resObj = {
+              url: carouselItems[0].url,
+              isVideo: false,
+              mediaType: "carousel",
+              contentType: "image/jpeg",
+              thumbnailUrl: carouselItems[0].url,
+              items: carouselItems
+            };
+            setCachedMediaInfo(shortcode, resObj);
+            return resObj;
           }
+          // If only 1 image found in embed preview, let it fall through to Puppeteer to get full carousel slides!
         }
       } catch (e) {
         logger.warn('[MEDIA EXTRACTION] Embed HTTP scraper error:', { error: e.message });

@@ -73,7 +73,7 @@ export async function extractWithPuppeteer(targetUrl) {
             !resUrl.includes('profile_pic') && 
             !resUrl.includes('rsrc.php') &&
             !resUrl.includes('s100x100') &&
-            !resUrl.includes('s150x150')) {
+            !resUrl.includes('s150x150') && !resUrl.includes('44884218_') && !resUrl.includes('avatar') && !resUrl.includes('silhouette') && !resUrl.includes('s320x320') && !resUrl.includes('p150x150')) {
           if (resUrl.includes('.mp4') || resUrl.includes('/o1/v/') || resUrl.includes('bytestart=')) {
             videoUrls.add(resUrl);
           } else if (resUrl.includes('.jpg') || resUrl.includes('.jpeg') || resUrl.includes('.webp')) {
@@ -111,7 +111,27 @@ export async function extractWithPuppeteer(targetUrl) {
     logger.info('[PUPPETEER] Navigating to full post page:', { targetUrl });
     try {
       await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 12000 });
-      await delay(1500);
+      await delay(1200);
+
+      // Advance through all carousel slides so Instagram loads all 7+ photos into memory
+      for (let s = 0; s < 12; s++) {
+        const nextBtn = await page.$('button[aria-label="Next"], button[aria-label="Go to next slide"], button._abl-, [aria-label="Next"]');
+        if (!nextBtn) break;
+        await nextBtn.click().catch(() => {});
+        await delay(500);
+      }
+
+      // Collect all full-sized DOM images rendered in the article
+      const domImgs = await page.evaluate(() => {
+        const imgs = Array.from(document.querySelectorAll('article img, div[role="dialog"] img, section main img'));
+        return imgs.map(i => i.src).filter(Boolean);
+      }).catch(() => []);
+
+      domImgs.forEach(u => {
+        if (u && !u.includes('profile_pic') && !u.includes('44884218_') && !u.includes('avatar') && !u.includes('150x150')) {
+          imgUrls.add(u);
+        }
+      });
     } catch (e) {
       logger.warn('[PUPPETEER] Full page navigation error:', { error: e.message });
     }

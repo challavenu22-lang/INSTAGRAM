@@ -9,6 +9,8 @@ import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
 
 const AppContent = () => {
   return (
@@ -16,7 +18,7 @@ const AppContent = () => {
       <Navbar />
       <main className="flex-1">
         <Routes>
-          {/* Main App Routes - Open to Everyone Directly */}
+          {/* Main App Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />
 
@@ -25,7 +27,11 @@ const AppContent = () => {
           <Route path="/history" element={<History />} />
           <Route path="/history/:id" element={<History />} />
 
-          {/* Default Fallback: Always open Home directly without authentication */}
+          {/* Public Legal Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+
+          {/* Default Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

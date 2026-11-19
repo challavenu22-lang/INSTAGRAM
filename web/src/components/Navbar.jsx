@@ -169,7 +169,7 @@ export const Navbar = () => {
     <header className="sticky top-0 z-40 w-full glass-panel">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between">
 
-        {/* Top-Left: Home Navigation Link (Cleaner Modern White House Icon + Text) */}
+        {/* Top-Left: Home Navigation Link */}
         <Link
           to="/home"
           onClick={handleHomeNavigation}
@@ -177,7 +177,9 @@ export const Navbar = () => {
           className="relative z-50 flex items-center gap-2.5 px-1 py-1 theme-text-primary hover:opacity-85 transition-opacity duration-200 focus:outline-none"
         >
           <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7 text-current shrink-0" />
-          <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">Home</span>
+          <span className="text-lg sm:text-xl font-bold tracking-tight theme-text-primary whitespace-nowrap">
+            Home
+          </span>
         </Link>
 
         {/* Top Right Header Actions */}

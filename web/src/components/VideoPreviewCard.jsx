@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Download, 
-  Film, 
-  Loader2, 
-  AlertCircle, 
+import {
+  Download,
+  Film,
+  Loader2,
+  AlertCircle,
   Image as ImageIcon,
   Play,
   Pause,
@@ -19,12 +19,12 @@ import { getApiBaseUrl } from '../services/api';
 const CarouselItem = ({ item, totalCount, index, videoTitle, onDownload, downloading, downloadingIndex }) => {
   const API_BASE = getApiBaseUrl();
   const rawTarget = item.sourceUrl || item.url || item.mediaUrl || '';
-  const isVideo = item.isVideo === true || 
-                  item.mediaType === 'video' || 
-                  (item.contentType && item.contentType.startsWith('video/')) ||
-                  /\.(mp4|webm|m4v|mov)(\?|$)/i.test(rawTarget) ||
-                  /\/(reel|tv)\//i.test(rawTarget);
-  
+  const isVideo = item.isVideo === true ||
+    item.mediaType === 'video' ||
+    (item.contentType && item.contentType.startsWith('video/')) ||
+    /\.(mp4|webm|m4v|mov)(\?|$)/i.test(rawTarget) ||
+    /\/(reel|tv)\//i.test(rawTarget) && item.mediaType !== 'image';
+
   const initialUrl = item.mediaUrl || item.streamUrl || item.url;
   const fullUrl = initialUrl?.startsWith('/') ? `${API_BASE}${initialUrl}` : initialUrl;
 
@@ -44,14 +44,14 @@ const CarouselItem = ({ item, totalCount, index, videoTitle, onDownload, downloa
     const match = rawTarget.match(/\/(reel|p|tv)\/([^\/?#]+)/i);
     const shortcode = match ? match[2] : null;
 
+    if (raw && raw.startsWith('http') && !isProfileOrAvatarUrl(raw)) {
+      return raw;
+    }
     if (raw && raw.startsWith('/')) {
       return `${API_BASE}${raw}`;
     }
     if (shortcode) {
       return `${API_BASE}/api/video/thumbnail/${shortcode}.jpg`;
-    }
-    if (raw && raw.startsWith('http') && !raw.includes('cdninstagram.com')) {
-      return raw;
     }
     if (rawTarget) {
       return `${API_BASE}/api/video/thumbnail?url=${encodeURIComponent(rawTarget)}`;
@@ -63,7 +63,7 @@ const CarouselItem = ({ item, totalCount, index, videoTitle, onDownload, downloa
   const isThisDownloading = downloading && downloadingIndex === index;
 
   return (
-    <div 
+    <div
       key={item.sourceUrl || item.url || index}
       className="w-full rounded-2xl overflow-hidden bg-slate-950/80 border border-slate-700/50 p-4 sm:p-5 shadow-xl flex flex-col items-center justify-center relative space-y-4"
     >
@@ -173,6 +173,29 @@ const CarouselItem = ({ item, totalCount, index, videoTitle, onDownload, downloa
   );
 };
 
+const isProfileOrAvatarUrl = (url) => {
+  if (!url) return false;
+  const lower = String(url).toLowerCase();
+  return (
+    lower.includes("44884218_") ||
+    lower.includes("profile_pic") ||
+    lower.includes("profilepic") ||
+    lower.includes("avatar") ||
+    lower.includes("silhouette") ||
+    lower.includes("rsrc.php") ||
+    lower.includes("static.cdninstagram.com") ||
+    lower.includes("s150x150") ||
+    lower.includes("p150x150") ||
+    lower.includes("s100x100") ||
+    lower.includes("p100x100") ||
+    lower.includes("s320x320") ||
+    lower.includes("p320x320") ||
+    lower.includes("150x150") ||
+    lower.includes("100x100") ||
+    lower.includes("stp=c")
+  );
+};
+
 export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const [videoError, setVideoError] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -194,7 +217,13 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
 
   if (!video) return null;
 
-  const rawItems = video.mediaItems || video.items;
+  const rawList = video.mediaItems || video.items;
+  const rawItems = Array.isArray(rawList)
+    ? rawList.filter(item => {
+        const u = item.url || item.sourceUrl || item.mediaUrl || "";
+        return !isProfileOrAvatarUrl(u);
+      })
+    : null;
   const items = Array.isArray(rawItems) && rawItems.length > 0 ? rawItems : [video];
   const isCarousel = items.length > 1 || video.mediaType === 'carousel';
 
@@ -215,8 +244,8 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   const targetCheckUrl = singleItem.sourceUrl || video.sourceUrl || singleItem.url || video.url || '';
 
   // Robust video detection: if it's an Instagram reel, tv, mp4, or flagged as video, treat as video
-  const isSingleVideo = 
-    singleItem.isVideo === true || 
+  const isSingleVideo =
+    singleItem.isVideo === true ||
     video.isVideo === true ||
     singleItem.mediaType === 'video' ||
     video.mediaType === 'video' ||
@@ -258,7 +287,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
           videoRef.current.pause();
           videoRef.current.removeAttribute('src');
           videoRef.current.load();
-        } catch (e) {}
+        } catch (e) { }
       }
     };
   }, []);
@@ -410,13 +439,13 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
 
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
       if (container.requestFullscreen) {
-        container.requestFullscreen().catch(() => {});
+        container.requestFullscreen().catch(() => { });
       } else if (container.webkitRequestFullscreen) {
         container.webkitRequestFullscreen();
       }
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
       } else if (document.webkitExitFullscreen) {
         document.webkitExitFullscreen();
       }
@@ -437,14 +466,14 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
     const match = targetCheckUrl.match(/\/(reel|p|tv)\/([^\/?#]+)/i);
     const shortcode = match ? match[2] : null;
 
+    if (raw && raw.startsWith('http') && !isProfileOrAvatarUrl(raw)) {
+      return raw;
+    }
     if (raw && raw.startsWith('/')) {
       return `${API_BASE}${raw}`;
     }
     if (shortcode) {
       return `${API_BASE}/api/video/thumbnail/${shortcode}.jpg`;
-    }
-    if (raw && raw.startsWith('http') && !raw.includes('cdninstagram.com')) {
-      return raw;
     }
     if (targetCheckUrl) {
       return `${API_BASE}/api/video/thumbnail?url=${encodeURIComponent(targetCheckUrl)}`;
@@ -464,7 +493,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
   // Render Carousel Mode: All items displayed vertically one below another
   if (isCarousel) {
     return (
-      <div 
+      <div
         key={video?.sourceUrl || video?.title || 'carousel-card'}
         className="w-full max-w-3xl mx-auto mt-8 rounded-3xl glass-panel p-5 sm:p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6"
       >
@@ -495,12 +524,12 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
 
   // Render Single Media Mode: Video or Image
   return (
-    <div 
+    <div
       key={video?.sourceUrl || video?.streamUrl || video?.title || 'single-card'}
       className="w-full max-w-3xl mx-auto mt-8 rounded-3xl glass-panel p-5 sm:p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4"
     >
       {/* Media Display Area with Custom Video Player */}
-      <div 
+      <div
         ref={playerContainerRef}
         onMouseMove={handleUserActivity}
         onMouseEnter={() => setShowControls(true)}
@@ -531,7 +560,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
                   setMediaLoading(true);
                   if (videoRef.current) {
                     videoRef.current.load();
-                    videoRef.current.play().catch(() => {});
+                    videoRef.current.play().catch(() => { });
                   }
                 }}
                 className="btn-secondary text-xs px-4 py-2 mt-2 cursor-pointer"
@@ -550,8 +579,14 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
                 autoPlay={Boolean(video?.autoPlay)}
                 muted={isMuted}
                 playsInline
-                preload="metadata"
+                preload="auto"
                 onClick={togglePlay}
+                onLoadedData={() => {
+                  setMediaLoading(false);
+                  if (videoRef.current && videoRef.current.currentTime === 0) {
+                    try { videoRef.current.currentTime = 0.05; } catch (e) {}
+                  }
+                }}
                 onTimeUpdate={() => {
                   if (videoRef.current) {
                     setCurrentTime(videoRef.current.currentTime);
@@ -588,7 +623,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
 
               {/* Big Center Play Overlay Button when paused (Clean White Triangle without red circle) */}
               {!isPlaying && !mediaLoading && !videoError && (
-                <div 
+                <div
                   onClick={togglePlay}
                   className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-black/25 transition-all"
                 >
@@ -604,10 +639,9 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
               )}
 
               {/* Custom Dark-Themed Player Controls Bar Overlay */}
-              <div 
-                className={`absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 sm:p-4 pt-8 flex flex-col gap-2 transition-all duration-300 ${
-                  showControls || !isPlaying ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'
-                }`}
+              <div
+                className={`absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 sm:p-4 pt-8 flex flex-col gap-2 transition-all duration-300 ${showControls || !isPlaying ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'
+                  }`}
               >
                 {/* Progress Bar / Scrubber (Red Seek Bar) */}
                 <div className="w-full flex items-center gap-2 group/scrub">
@@ -733,7 +767,7 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
                   console.error("Image preview load error for URL:", mediaSource, e);
                   const rawTargetUrl = singleItem.sourceUrl || video.sourceUrl || video.directMediaUrl;
                   const proxiedUrl = `${API_BASE}/api/video/stream?url=${encodeURIComponent(rawTargetUrl || mediaSource)}`;
-                  
+
                   if (mediaSource !== proxiedUrl) {
                     setMediaSource(proxiedUrl);
                   } else {
@@ -764,9 +798,9 @@ export const VideoPreviewCard = ({ video, onDownload, downloading }) => {
       >
         <Download className="w-5 h-5" />
         <span>
-          {downloading 
-            ? (isSingleVideo ? 'Downloading Video...' : 'Downloading Image...') 
-            : (isSingleVideo ? '⬇ Download Video' : '⬇ Download Image')
+          {downloading
+            ? (isSingleVideo ? 'Downloading Video...' : 'Downloading Image...')
+            : (isSingleVideo ? ' Download Video' : ' Download Image')
           }
         </span>
       </button>
