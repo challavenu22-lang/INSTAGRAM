@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  FolderDown, 
-  Sun, 
-  Moon, 
-  Monitor, 
-  Bell, 
-  AlertTriangle, 
-  CheckCircle2, 
+import {
+  FolderDown,
+  Sun,
+  Moon,
+  Monitor,
+  Bell,
+  AlertTriangle,
+  CheckCircle2,
   RotateCcw,
   Volume2
 } from 'lucide-react';
@@ -98,18 +98,6 @@ export const Settings = () => {
         </div>
 
         <div className="space-y-3 md:space-y-4 pt-1">
-          {/* Default Downloads */}
-          <div 
-            onClick={handleSelectDefaultLocation}
-            className="p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center justify-between cursor-pointer transition-all bg-brand-500/10 border-brand-500 theme-text-primary"
-          >
-            <div>
-              <p className="text-xs md:text-sm font-semibold">Default Downloads</p>
-              <p className="text-[11px] md:text-xs theme-text-muted mt-0.5">Save files directly to browser default downloads folder</p>
-            </div>
-            <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-brand-400 shrink-0" />
-          </div>
-
           {/* Auto Save to History Toggle */}
           <div className="flex items-center justify-between py-2 md:py-3 border-t border-slate-700/40">
             <div>
@@ -119,9 +107,8 @@ export const Settings = () => {
             <button
               type="button"
               onClick={handleToggleAutoSave}
-              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${
-                settings.autoSaveHistory !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
-              }`}
+              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${settings.autoSaveHistory !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
+                }`}
             >
               <span className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-white shadow-md block"></span>
             </button>
@@ -138,63 +125,60 @@ export const Settings = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3 pt-1">
           {/* Light Theme */}
-          <label 
+          <label
             onClick={() => handleThemeChange('light')}
-            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${
-              theme === 'light'
-                ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
-                : 'btn-secondary border-slate-700/40'
-            }`}
+            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${theme === 'light'
+              ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
+              : 'btn-secondary border-slate-700/40'
+              }`}
           >
-            <input 
-              type="radio" 
-              name="theme" 
-              value="light" 
-              checked={theme === 'light'} 
+            <input
+              type="radio"
+              name="theme"
+              value="light"
+              checked={theme === 'light'}
               onChange={() => handleThemeChange('light')}
-              className="hidden" 
+              className="hidden"
             />
             <Sun className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
             <span className="text-xs md:text-sm font-medium">Light</span>
           </label>
 
           {/* Dark Theme */}
-          <label 
+          <label
             onClick={() => handleThemeChange('dark')}
-            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${
-              theme === 'dark'
-                ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
-                : 'btn-secondary border-slate-700/40'
-            }`}
+            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${theme === 'dark'
+              ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
+              : 'btn-secondary border-slate-700/40'
+              }`}
           >
-            <input 
-              type="radio" 
-              name="theme" 
-              value="dark" 
-              checked={theme === 'dark'} 
+            <input
+              type="radio"
+              name="theme"
+              value="dark"
+              checked={theme === 'dark'}
               onChange={() => handleThemeChange('dark')}
-              className="hidden" 
+              className="hidden"
             />
             <Moon className="w-4 h-4 md:w-5 md:h-5 text-brand-400" />
             <span className="text-xs md:text-sm font-medium">Dark</span>
           </label>
 
           {/* System Default */}
-          <label 
+          <label
             onClick={() => handleThemeChange('system')}
-            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${
-              theme === 'system'
-                ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
-                : 'btn-secondary border-slate-700/40'
-            }`}
+            className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center gap-2.5 md:gap-3 cursor-pointer transition-all ${theme === 'system'
+              ? 'bg-brand-500/10 border-brand-500 theme-text-primary'
+              : 'btn-secondary border-slate-700/40'
+              }`}
           >
-            <input 
-              type="radio" 
-              name="theme" 
-              value="system" 
-              checked={theme === 'system'} 
+            <input
+              type="radio"
+              name="theme"
+              value="system"
+              checked={theme === 'system'}
               onChange={() => handleThemeChange('system')}
-              className="hidden" 
+              className="hidden"
             />
             <Monitor className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
             <span className="text-xs md:text-sm font-medium">System Default</span>
@@ -219,9 +203,8 @@ export const Settings = () => {
             <button
               type="button"
               onClick={handleToggleNotifyComplete}
-              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${
-                settings.notifyComplete !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
-              }`}
+              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${settings.notifyComplete !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
+                }`}
             >
               <span className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-white shadow-md block"></span>
             </button>
@@ -236,9 +219,8 @@ export const Settings = () => {
             <button
               type="button"
               onClick={handleToggleNotifyFailed}
-              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${
-                settings.notifyFailed !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
-              }`}
+              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${settings.notifyFailed !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
+                }`}
             >
               <span className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-white shadow-md block"></span>
             </button>
@@ -256,9 +238,8 @@ export const Settings = () => {
             <button
               type="button"
               onClick={handleToggleNotifySound}
-              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${
-                settings.notifySound !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
-              }`}
+              className={`w-10 h-5 md:w-12 md:h-6 flex items-center rounded-full p-0.5 md:p-1 transition-colors duration-200 ${settings.notifySound !== false ? 'bg-brand-600 justify-end' : 'bg-slate-700 justify-start'
+                }`}
             >
               <span className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-white shadow-md block"></span>
             </button>

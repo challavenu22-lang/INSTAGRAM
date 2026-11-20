@@ -760,7 +760,7 @@ export const History = () => {
                 Private cloud history for <strong className="theme-text-primary">{user.userName || user.email}</strong>
               </span>
             ) : (
-              <span>Guest Mode &bull; History is not saved without an account.</span>
+              <span></span>
             )}
           </p>
         </div>
