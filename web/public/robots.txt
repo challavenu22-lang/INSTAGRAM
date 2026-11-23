@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://instagram-uftewvf7tewf7webf8yy.vercel.app/sitemap.xml

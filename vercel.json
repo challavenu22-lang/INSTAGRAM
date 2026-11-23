@@ -12,21 +12,26 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html",
-      "has": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/((?!api|sitemap\\.xml|robots\\.txt).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
     {
-      "source": "/",
+      "source": "/sitemap.xml",
       "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        },
         {
           "key": "X-Robots-Tag",
           "value": "all, index, follow"
@@ -34,7 +39,7 @@
       ]
     },
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
